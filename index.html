@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Calculadora de Ganancias</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1a1a1a;
+    --card2: #222222;
+    --yellow: #f5e642;
+    --green: #4ade80;
+    --muted: #666;
+    --text: #f0f0f0;
+    --border: #2e2e2e;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:'DM Sans',sans-serif;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px;
+  }
+
+  .login-box {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:24px;
+    padding:36px 28px;
+    width:100%; max-width:380px;
+    display:flex; flex-direction:column; gap:20px;
+  }
+
+  .logo {
+    font-family:'Bebas Neue',cursive;
+    font-size:2.6rem;
+    color:var(--yellow);
+    line-height:1;
+  }
+  .logo span { color:var(--text); }
+  .subtitle { font-size:0.85rem; color:var(--muted); margin-top:-12px; }
+
+  label { font-size:0.8rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:6px; }
+
+  input[type="text"] {
+    width:100%;
+    background:var(--card2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--text);
+    font-family:'DM Sans',sans-serif;
+    font-size:1.1rem;
+    padding:14px 16px;
+    outline:none;
+    transition:border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color:var(--yellow); }
+  input[type="text"]::placeholder { color:var(--muted); }
+
+  .btn-enter {
+    background:var(--yellow);
+    color:#111;
+    border:none;
+    border-radius:12px;
+    font-family:'Bebas Neue',cursive;
+    font-size:1.4rem;
+    letter-spacing:1px;
+    padding:14px;
+    cursor:pointer;
+    transition:opacity 0.2s, transform 0.1s;
+    width:100%;
+  }
+  .btn-enter:active { transform:scale(0.97); opacity:0.9; }
+
+  .users-list { display:flex; flex-direction:column; gap:6px; }
+  .user-chip {
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 14px; cursor:pointer; transition:border-color 0.2s;
+  }
+  .user-chip:active { border-color:var(--yellow); }
+  .user-chip .name { font-weight:600; font-size:0.9rem; }
+  .user-chip .meta { font-size:0.75rem; color:var(--muted); }
+  .user-chip .arrow { color:var(--yellow); font-size:1rem; }
+
+  .divider { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:0.78rem; }
+  .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .error { color:#f87171; font-size:0.82rem; display:none; }
+</style>
+</head>
+<body>
+
+<div class="login-box">
+  <div>
+    <div class="logo">Calcula<span>Pedidos</span></div>
+    <div class="subtitle">Registro de ganancias del mes</div>
+  </div>
+
+  <div id="savedUsersSection" style="display:none;">
+    <label>Acceso rápido</label>
+    <div class="users-list" id="savedUsers"></div>
+    <div class="divider" style="margin-top:14px;">o ingresa otro nombre</div>
+  </div>
+
+  <div>
+    <label for="nameInput">Tu nombre</label>
+    <input type="text" id="nameInput" placeholder="Ej: Juan, María..." autocomplete="off" maxlength="30">
+    <div class="error" id="errorMsg">Por favor ingresa tu nombre</div>
+  </div>
+
+  <button class="btn-enter" onclick="entrar()">ENTRAR →</button>
+</div>
+
+<script>
+  function getSavedUsers() {
+    try { return JSON.parse(localStorage.getItem('cp_usuarios') || '[]'); } catch { return []; }
+  }
+
+  function renderSavedUsers() {
+    const users = getSavedUsers();
+    const section = document.getElementById('savedUsersSection');
+    const list = document.getElementById('savedUsers');
+    if (users.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = '';
+    users.slice().reverse().slice(0,5).forEach(u => {
+      const div = document.createElement('div');
+      div.className = 'user-chip';
+      div.innerHTML = `<div><div class="name">${u.nombre}</div><div class="meta">Último acceso: ${u.ultimo}</div></div><div class="arrow">→</div>`;
+      div.addEventListener('click', () => irAApp(u.nombre));
+      list.appendChild(div);
+    });
+  }
+
+  function entrar() {
+    const nombre = document.getElementById('nameInput').value.trim();
+    const err = document.getElementById('errorMsg');
+    if (!nombre) { err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    irAApp(nombre);
+  }
+
+  function irAApp(nombre) {
+    // Guardar usuario
+    let users = getSavedUsers();
+    users = users.filter(u => u.nombre.toLowerCase() !== nombre.toLowerCase());
+    users.push({ nombre, ultimo: new Date().toLocaleDateString('es-CL') });
+    localStorage.setItem('cp_usuarios', JSON.stringify(users));
+    // Guardar sesión activa
+    localStorage.setItem('cp_usuario_activo', nombre);
+    window.location.href = 'app.html';
+  }
+
+  document.getElementById('nameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') entrar();
+  });
+
+  renderSavedUsers();
+</script>
+</body>
+</html>
