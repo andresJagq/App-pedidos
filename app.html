@@ -319,8 +319,10 @@ async function init() {
   const d = new Date()
   document.getElementById('headerMonth').textContent = meses[d.getMonth()] + ' ' + d.getFullYear()
 
-  // Fecha hoy
-  document.getElementById('fechaDia').value = d.toISOString().split('T')[0]
+  // Fecha hoy y listener para cambio de fecha
+  const fechaInput = document.getElementById('fechaDia')
+  fechaInput.value = d.toISOString().split('T')[0]
+  fechaInput.addEventListener('change', () => cargarDiaEnForm(fechaInput.value))
 
   // Fechas export: primer día del mes hasta hoy
   const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
@@ -331,7 +333,7 @@ async function init() {
   buildBonusGrid()
   await cargarBonos()
   buildRefTable()
-  agregarPedido()
+  await cargarDiaEnForm(d.toISOString().split('T')[0])
   await cargarDias()
 }
 
@@ -366,8 +368,28 @@ function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null
 function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL') }
 function getDescPct() { return parseFloat(document.getElementById('descInput')?.value) || 18.5 }
 
+// ── CARGAR DÍA EN FORMULARIO ────────────────────────────
+async function cargarDiaEnForm(fechaISO) {
+  // Limpiar lista actual
+  document.getElementById('pedidosList').innerHTML = ''
+  pedidoCounter = 0
+
+  // Buscar si hay datos para esa fecha
+  const { data } = await sb.from('dias')
+    .select('*').eq('user_id', USER.id).eq('fecha', fechaISO).single()
+
+  if (data && data.pedidos.length > 0) {
+    // Cargar pedidos guardados
+    data.pedidos.forEach(p => agregarPedido(p.skus))
+    showToast('📂 Día cargado — puedes modificarlo')
+  } else {
+    // Día sin datos: un pedido limpio
+    agregarPedido()
+  }
+}
+
 // ── PEDIDOS ─────────────────────────────────────────────
-function agregarPedido() {
+function agregarPedido(skusInicial = 1) {
   pedidoCounter++
   const id = pedidoCounter
   const list = document.getElementById('pedidosList')
@@ -377,7 +399,7 @@ function agregarPedido() {
     <div class="pedido-num">#${list.children.length + 1}</div>
     <div class="pedido-skus">
       <button class="btn-step" onclick="stepPedido(${id},-1)">−</button>
-      <input class="num-input" id="sku-${id}" type="number" value="1" min="1" max="999" oninput="calcular()">
+      <input class="num-input" id="sku-${id}" type="number" value="${skusInicial}" min="1" max="999" oninput="calcular()">
       <button class="btn-step" onclick="stepPedido(${id},1)">+</button>
     </div>
     <div class="pedido-tramo" id="tramo-${id}"><span>$120/SKU</span></div>
