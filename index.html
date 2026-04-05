@@ -3,163 +3,127 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Calculadora de Ganancias</title>
+<title>CalculaPedidos — Login</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0f0f0f;
-    --card: #1a1a1a;
-    --card2: #222222;
-    --yellow: #f5e642;
-    --green: #4ade80;
-    --muted: #666;
-    --text: #f0f0f0;
-    --border: #2e2e2e;
-  }
+  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body {
-    background:var(--bg); color:var(--text);
-    font-family:'DM Sans',sans-serif;
-    min-height:100vh;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    padding:24px;
-  }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
 
-  .login-box {
-    background:var(--card);
-    border:1px solid var(--border);
-    border-radius:24px;
-    padding:36px 28px;
-    width:100%; max-width:380px;
-    display:flex; flex-direction:column; gap:20px;
-  }
-
-  .logo {
-    font-family:'Bebas Neue',cursive;
-    font-size:2.6rem;
-    color:var(--yellow);
-    line-height:1;
-  }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:24px; padding:32px 24px; width:100%; max-width:380px; display:flex; flex-direction:column; gap:20px; }
+  .logo { font-family:'Bebas Neue',cursive; font-size:2.4rem; color:var(--yellow); line-height:1; }
   .logo span { color:var(--text); }
-  .subtitle { font-size:0.85rem; color:var(--muted); margin-top:-12px; }
+  .sub { font-size:0.82rem; color:var(--muted); margin-top:-14px; }
 
-  label { font-size:0.8rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:6px; }
+  .tabs { display:flex; background:var(--card2); border-radius:10px; padding:3px; gap:3px; }
+  .tab { flex:1; padding:8px; text-align:center; border-radius:8px; font-size:0.82rem; font-weight:600; color:var(--muted); cursor:pointer; transition:all 0.2s; }
+  .tab.active { background:var(--yellow); color:#111; }
 
-  input[type="text"] {
-    width:100%;
-    background:var(--card2);
-    border:1px solid var(--border);
-    border-radius:12px;
-    color:var(--text);
-    font-family:'DM Sans',sans-serif;
-    font-size:1.1rem;
-    padding:14px 16px;
-    outline:none;
-    transition:border-color 0.2s;
-  }
-  input[type="text"]:focus { border-color:var(--yellow); }
-  input[type="text"]::placeholder { color:var(--muted); }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:0.75rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; }
+  .field input { background:var(--card2); border:1px solid var(--border); border-radius:11px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:1rem; padding:13px 14px; outline:none; transition:border-color 0.2s; }
+  .field input:focus { border-color:var(--yellow); }
 
-  .btn-enter {
-    background:var(--yellow);
-    color:#111;
-    border:none;
-    border-radius:12px;
-    font-family:'Bebas Neue',cursive;
-    font-size:1.4rem;
-    letter-spacing:1px;
-    padding:14px;
-    cursor:pointer;
-    transition:opacity 0.2s, transform 0.1s;
-    width:100%;
-  }
-  .btn-enter:active { transform:scale(0.97); opacity:0.9; }
+  .btn { background:var(--yellow); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; transition:opacity 0.2s,transform 0.1s; width:100%; }
+  .btn:active { transform:scale(0.97); }
+  .btn:disabled { opacity:0.5; cursor:not-allowed; }
 
-  .users-list { display:flex; flex-direction:column; gap:6px; }
-  .user-chip {
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--card2); border:1px solid var(--border); border-radius:10px;
-    padding:10px 14px; cursor:pointer; transition:border-color 0.2s;
-  }
-  .user-chip:active { border-color:var(--yellow); }
-  .user-chip .name { font-weight:600; font-size:0.9rem; }
-  .user-chip .meta { font-size:0.75rem; color:var(--muted); }
-  .user-chip .arrow { color:var(--yellow); font-size:1rem; }
-
-  .divider { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:0.78rem; }
-  .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
-
-  .error { color:#f87171; font-size:0.82rem; display:none; }
+  .error { background:#2a1414; border:1px solid var(--red); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--red); display:none; }
+  .success { background:#0e1f0e; border:1px solid var(--green); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--green); display:none; }
 </style>
 </head>
 <body>
-
-<div class="login-box">
+<div class="box">
   <div>
     <div class="logo">Calcula<span>Pedidos</span></div>
-    <div class="subtitle">Registro de ganancias del mes</div>
+    <div class="sub">Registro de ganancias del mes</div>
   </div>
 
-  <div id="savedUsersSection" style="display:none;">
-    <label>Acceso rápido</label>
-    <div class="users-list" id="savedUsers"></div>
-    <div class="divider" style="margin-top:14px;">o ingresa otro nombre</div>
+  <div class="tabs">
+    <div class="tab active" onclick="setTab('login')">Ingresar</div>
+    <div class="tab" onclick="setTab('register')">Registrarse</div>
   </div>
 
-  <div>
-    <label for="nameInput">Tu nombre</label>
-    <input type="text" id="nameInput" placeholder="Ej: Juan, María..." autocomplete="off" maxlength="30">
-    <div class="error" id="errorMsg">Por favor ingresa tu nombre</div>
+  <div id="nombreField" class="field" style="display:none;">
+    <label>Nombre</label>
+    <input type="text" id="nombre" placeholder="Tu nombre" maxlength="40">
+  </div>
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="correo@email.com">
+  </div>
+  <div class="field">
+    <label>Contraseña</label>
+    <input type="password" id="password" placeholder="••••••••">
   </div>
 
-  <button class="btn-enter" onclick="entrar()">ENTRAR →</button>
+  <div class="error" id="errorMsg"></div>
+  <div class="success" id="successMsg"></div>
+
+  <button class="btn" id="btnAction" onclick="action()">ENTRAR →</button>
 </div>
 
 <script>
-  function getSavedUsers() {
-    try { return JSON.parse(localStorage.getItem('cp_usuarios') || '[]'); } catch { return []; }
+let mode = 'login'
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession()
+  if (session) window.location.href = 'app.html'
+}
+checkSession()
+
+function setTab(m) {
+  mode = m
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&m==='login')||(i===1&&m==='register')))
+  document.getElementById('nombreField').style.display = m === 'register' ? 'flex' : 'none'
+  document.getElementById('btnAction').textContent = m === 'login' ? 'ENTRAR →' : 'REGISTRARSE →'
+  hide()
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg')
+  el.textContent = msg; el.style.display = 'block'
+  document.getElementById('successMsg').style.display = 'none'
+}
+function showSuccess(msg) {
+  const el = document.getElementById('successMsg')
+  el.textContent = msg; el.style.display = 'block'
+  document.getElementById('errorMsg').style.display = 'none'
+}
+function hide() {
+  document.getElementById('errorMsg').style.display = 'none'
+  document.getElementById('successMsg').style.display = 'none'
+}
+
+async function action() {
+  const email = document.getElementById('email').value.trim()
+  const password = document.getElementById('password').value
+  const btn = document.getElementById('btnAction')
+
+  if (!email || !password) return showError('Completa todos los campos')
+  btn.disabled = true
+
+  if (mode === 'login') {
+    const { error } = await sb.auth.signInWithPassword({ email, password })
+    if (error) { showError('Email o contraseña incorrectos'); btn.disabled = false; return }
+    window.location.href = 'app.html'
+  } else {
+    const nombre = document.getElementById('nombre').value.trim()
+    if (!nombre) { showError('Ingresa tu nombre'); btn.disabled = false; return }
+    const { error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { nombre } }
+    })
+    if (error) { showError(error.message); btn.disabled = false; return }
+    showSuccess('✅ Cuenta creada. Ya puedes ingresar.')
+    setTab('login')
+    btn.disabled = false
   }
+}
 
-  function renderSavedUsers() {
-    const users = getSavedUsers();
-    const section = document.getElementById('savedUsersSection');
-    const list = document.getElementById('savedUsers');
-    if (users.length === 0) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
-    list.innerHTML = '';
-    users.slice().reverse().slice(0,5).forEach(u => {
-      const div = document.createElement('div');
-      div.className = 'user-chip';
-      div.innerHTML = `<div><div class="name">${u.nombre}</div><div class="meta">Último acceso: ${u.ultimo}</div></div><div class="arrow">→</div>`;
-      div.addEventListener('click', () => irAApp(u.nombre));
-      list.appendChild(div);
-    });
-  }
-
-  function entrar() {
-    const nombre = document.getElementById('nameInput').value.trim();
-    const err = document.getElementById('errorMsg');
-    if (!nombre) { err.style.display = 'block'; return; }
-    err.style.display = 'none';
-    irAApp(nombre);
-  }
-
-  function irAApp(nombre) {
-    // Guardar usuario
-    let users = getSavedUsers();
-    users = users.filter(u => u.nombre.toLowerCase() !== nombre.toLowerCase());
-    users.push({ nombre, ultimo: new Date().toLocaleDateString('es-CL') });
-    localStorage.setItem('cp_usuarios', JSON.stringify(users));
-    // Guardar sesión activa
-    localStorage.setItem('cp_usuario_activo', nombre);
-    window.location.href = 'app.html';
-  }
-
-  document.getElementById('nameInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') entrar();
-  });
-
-  renderSavedUsers();
+document.addEventListener('keydown', e => { if (e.key === 'Enter') action() })
 </script>
 </body>
 </html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Admin — CalculaPedidos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; }
+  header { background:var(--yellow); padding:18px 16px 26px; position:relative; }
+  header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
+  .header-top { display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
+  .btn-logout { background:rgba(0,0,0,0.12); border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; color:#333; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; }
+
+  .content { padding:20px 16px 0; max-width:600px; margin:0 auto; }
+  .section-label { font-family:'Bebas Neue',cursive; font-size:1rem; color:var(--yellow); letter-spacing:2px; margin-bottom:10px; }
+
+  .export-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px; }
+  .export-card label { font-size:0.75rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:5px; }
+  .export-card input[type="date"] { background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--yellow); font-family:'DM Sans',sans-serif; font-size:0.88rem; padding:8px 10px; outline:none; width:100%; }
+  .dates-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .btn-export { width:100%; background:var(--green); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.2rem; letter-spacing:1px; padding:12px; cursor:pointer; margin-top:8px; }
+  .btn-export:active { opacity:0.9; }
+  .btn-export:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .users-list { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .user-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .user-card .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .user-card .name { font-weight:700; font-size:0.95rem; }
+  .user-card .email { font-size:0.75rem; color:var(--muted); }
+  .user-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .stat { background:var(--card2); border-radius:8px; padding:8px 10px; }
+  .stat .sl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .stat .sv { font-family:'Bebas Neue',cursive; font-size:1.1rem; color:var(--yellow); }
+  .stat .sv.g { color:var(--green); }
+  .btn-user-export { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:6px 12px; font-size:0.75rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  .btn-user-export:active { border-color:var(--green); color:var(--green); }
+
+  .loading { text-align:center; padding:30px; color:var(--muted); }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-top">
+    <h1>ADMIN<br>PANEL</h1>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<div class="content">
+
+  <div class="section-label" style="margin-top:8px;">📊 Exportar todos los usuarios</div>
+  <div class="export-card">
+    <div class="dates-row">
+      <div><label>Desde</label><input type="date" id="exportDesde"></div>
+      <div><label>Hasta</label><input type="date" id="exportHasta"></div>
+    </div>
+    <button class="btn-export" id="btnExportAll" onclick="exportarTodos()">⬇️ EXPORTAR TODOS</button>
+  </div>
+
+  <div class="section-label">👥 Usuarios registrados</div>
+  <div class="users-list" id="usersList"><div class="loading">Cargando...</div></div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let USER = null
+let allUsers = []
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession()
+  if (!session) { window.location.href = 'index.html'; return }
+  USER = session.user
+
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', USER.id).single()
+  if (!profile?.es_admin) { window.location.href = 'app.html'; return }
+
+  const d = new Date()
+  const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  document.getElementById('exportDesde').value = primerDia
+  document.getElementById('exportHasta').value = d.toISOString().split('T')[0]
+
+  await cargarUsuarios()
+}
+
+async function logout() {
+  await sb.auth.signOut()
+  window.location.href = 'index.html'
+}
+
+async function cargarUsuarios() {
+  const desde = document.getElementById('exportDesde').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const hasta = document.getElementById('exportHasta').value || new Date().toISOString().split('T')[0]
+
+  const { data: profiles } = await sb.from('profiles').select('*').order('nombre')
+  if (!profiles) return
+
+  const list = document.getElementById('usersList')
+  list.innerHTML = ''
+  allUsers = []
+
+  for (const p of profiles) {
+    const { data: dias } = await sb.from('dias')
+      .select('*').eq('user_id', p.id).gte('fecha', desde).lte('fecha', hasta)
+
+    const totalBruto = (dias||[]).reduce((s,d) => s + d.bruto, 0)
+    const totalNeto = (dias||[]).reduce((s,d) => s + d.neto, 0)
+    const totalDias = (dias||[]).length
+    allUsers.push({ profile: p, dias: dias||[] })
+
+    const card = document.createElement('div')
+    card.className = 'user-card'
+    card.innerHTML = `
+      <div class="top">
+        <div>
+          <div class="name">${p.nombre || '—'}</div>
+          <div class="email">${p.id.substring(0,8)}... ${p.es_admin ? '⭐ admin' : ''}</div>
+        </div>
+        <button class="btn-user-export" onclick="exportarUsuario('${p.id}')">⬇️ Excel</button>
+      </div>
+      <div class="user-stats">
+        <div class="stat"><div class="sl">Días</div><div class="sv">${totalDias}</div></div>
+        <div class="stat"><div class="sl">Bruto</div><div class="sv">$${Math.round(totalBruto).toLocaleString('es-CL')}</div></div>
+        <div class="stat"><div class="sl">Neto</div><div class="sv g">$${Math.round(totalNeto).toLocaleString('es-CL')}</div></div>
+      </div>`
+    list.appendChild(card)
+  }
+}
+
+async function exportarUsuario(userId) {
+  const userData = allUsers.find(u => u.profile.id === userId)
+  if (!userData || userData.dias.length === 0) { showToast('⚠️ Sin datos en ese rango'); return }
+  generarExcel([userData])
+}
+
+async function exportarTodos() {
+  const btn = document.getElementById('btnExportAll')
+  btn.disabled = true; btn.textContent = 'Generando...'
+  await cargarUsuarios()
+  generarExcel(allUsers)
+  btn.disabled = false; btn.textContent = '⬇️ EXPORTAR TODOS'
+}
+
+function generarExcel(usersData) {
+  const wb = XLSX.utils.book_new()
+
+  usersData.forEach(({ profile, dias }) => {
+    if (dias.length === 0) return
+    const rows = []
+    dias.forEach(d => {
+      d.pedidos.forEach((p, i) => {
+        rows.push({
+          'Fecha': d.fecha_label,
+          'Pedido #': p.idx,
+          'SKUs': p.skus,
+          '$/SKU': p.valor,
+          'Base': p.base,
+          'Bruto pedido': p.pago,
+          'Bruto día': i === 0 ? d.bruto : '',
+          'Descuento %': i === 0 ? d.desc_pct : '',
+          'Descuento $': i === 0 ? d.descuento : '',
+          'Neto día': i === 0 ? d.neto : '',
+        })
+      })
+    })
+    const totalBruto = dias.reduce((s,d) => s + d.bruto, 0)
+    const totalNeto = dias.reduce((s,d) => s + d.neto, 0)
+    rows.push({})
+    rows.push({ 'Fecha': 'TOTAL', 'Bruto día': totalBruto, 'Neto día': totalNeto })
+
+    const nombre = (profile.nombre || 'usuario').substring(0, 31)
+    const ws = XLSX.utils.json_to_sheet(rows)
+    XLSX.utils.book_append_sheet(wb, ws, nombre)
+  })
+
+  const desde = document.getElementById('exportDesde').value
+  const hasta = document.getElementById('exportHasta').value
+  XLSX.writeFile(wb, `ganancias_todos_${desde}_${hasta}.xlsx`)
+  showToast('✅ Excel descargado')
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'
+  setTimeout(() => t.style.display = 'none', 2200)
+}
+
+init()
+</script>
+</body>
+</html>

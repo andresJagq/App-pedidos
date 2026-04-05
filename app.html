@@ -3,48 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Calculadora de Ganancias</title>
+<title>CalculaPedidos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0f0f0f; --card: #1a1a1a; --card2: #222;
-    --yellow: #f5e642; --green: #4ade80; --red: #f87171;
-    --muted: #666; --text: #f0f0f0; --border: #2e2e2e;
-  }
+  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; overflow-x:hidden; }
 
-  /* HEADER */
-  header { background:var(--yellow); padding:20px 16px 28px; position:relative; overflow:hidden; }
+  header { background:var(--yellow); padding:18px 16px 26px; position:relative; overflow:hidden; }
   header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
   .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
-  header h1 { font-family:'Bebas Neue',cursive; font-size:2rem; color:#111; line-height:1; }
+  header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
   .header-user { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
   .user-name { font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#111; }
-  .user-month { font-size:0.72rem; color:#444; font-weight:600; }
-  .btn-logout { background:rgba(0,0,0,0.12); border:none; border-radius:8px; padding:4px 10px; font-size:0.72rem; color:#333; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; }
+  .user-month { font-size:0.7rem; color:#444; font-weight:600; }
+  .btn-logout { background:rgba(0,0,0,0.12); border:none; border-radius:8px; padding:4px 10px; font-size:0.7rem; color:#333; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; }
 
-  /* TABS */
-  .tabs { display:flex; gap:0; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
-  .tab { flex:1; padding:13px 8px; text-align:center; font-size:0.78rem; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+  .tabs { display:flex; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+  .tab { flex:1; padding:12px 6px; text-align:center; font-size:0.75rem; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
   .tab.active { color:var(--yellow); border-bottom-color:var(--yellow); }
 
-  /* CONTENT */
-  .content { padding:20px 16px 0; max-width:500px; margin:0 auto; }
+  .content { padding:18px 16px 0; max-width:500px; margin:0 auto; }
   .tab-panel { display:none; }
   .tab-panel.active { display:block; }
 
   .section-label { font-family:'Bebas Neue',cursive; font-size:1rem; color:var(--yellow); letter-spacing:2px; margin-bottom:8px; }
-  .input-card { background:var(--card); border-radius:14px; padding:16px; border:1px solid var(--border); margin-bottom:16px; }
+  .input-card { background:var(--card); border-radius:14px; padding:16px; border:1px solid var(--border); margin-bottom:14px; }
 
-  /* STEPPER */
   .btn-step { width:44px; height:44px; border-radius:11px; border:1px solid var(--border); background:var(--card2); color:var(--yellow); font-size:1.4rem; font-weight:700; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; }
   .btn-step:active { transform:scale(0.92); }
   .num-input { flex:1; background:var(--card2); border:1px solid var(--border); border-radius:11px; color:var(--text); font-family:'Bebas Neue',cursive; font-size:1.9rem; text-align:center; padding:9px 6px; outline:none; -moz-appearance:textfield; }
   .num-input::-webkit-inner-spin-button, .num-input::-webkit-outer-spin-button { -webkit-appearance:none; }
   .num-input:focus { border-color:var(--yellow); }
 
-  /* DESCUENTO */
   .desc-row { display:flex; align-items:center; gap:10px; }
   .desc-row label { font-size:0.82rem; color:var(--muted); flex:1; line-height:1.4; }
   .desc-input-wrap { display:flex; align-items:center; gap:4px; background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:6px 10px; flex-shrink:0; }
@@ -52,7 +46,6 @@
   .desc-input-wrap input::-webkit-inner-spin-button, .desc-input-wrap input::-webkit-outer-spin-button { -webkit-appearance:none; }
   .desc-input-wrap span { color:var(--yellow); font-family:'Bebas Neue',cursive; font-size:1rem; }
 
-  /* PEDIDOS */
   .pedidos-list { display:flex; flex-direction:column; gap:7px; margin-bottom:8px; }
   .pedido-row { display:flex; align-items:center; gap:7px; background:var(--card); border:1px solid var(--border); border-radius:11px; padding:9px 11px; }
   .pedido-num { font-family:'Bebas Neue',cursive; font-size:0.82rem; color:var(--muted); width:20px; flex-shrink:0; }
@@ -63,15 +56,14 @@
   .btn-del { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--red); font-size:0.95rem; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
   .btn-del:active { background:#2a1414; }
 
-  .btn-add { width:100%; background:none; border:1px dashed var(--border); border-radius:11px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.83rem; padding:10px; cursor:pointer; margin-bottom:16px; transition:border-color 0.2s,color 0.2s; }
+  .btn-add { width:100%; background:none; border:1px dashed var(--border); border-radius:11px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.83rem; padding:10px; cursor:pointer; margin-bottom:14px; transition:border-color 0.2s,color 0.2s; }
   .btn-add:active { border-color:var(--yellow); color:var(--yellow); }
 
-  /* GUARDAR DIA */
-  .btn-save-day { width:100%; background:var(--yellow); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:16px; transition:opacity 0.2s,transform 0.1s; }
-  .btn-save-day:active { transform:scale(0.97); opacity:0.9; }
+  .btn-save-day { width:100%; background:var(--yellow); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
+  .btn-save-day:active { transform:scale(0.97); }
+  .btn-save-day:disabled { opacity:0.5; cursor:not-allowed; }
 
-  /* RESULTADO DIA */
-  .result-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:16px; position:relative; overflow:hidden; }
+  .result-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
   .result-card::before { content:'$'; position:absolute; right:6px; top:-8px; font-family:'Bebas Neue',cursive; font-size:7rem; color:var(--yellow); opacity:0.05; line-height:1; }
   .rlabel { font-size:0.68rem; font-weight:600; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
   .rtotal { font-family:'Bebas Neue',cursive; font-size:2.6rem; color:var(--yellow); line-height:1; margin-bottom:10px; }
@@ -80,15 +72,12 @@
   .brow { display:flex; justify-content:space-between; align-items:flex-start; font-size:0.79rem; gap:8px; }
   .brow .bl { color:var(--muted); flex:1; }
   .brow .bv { font-weight:700; color:var(--text); flex-shrink:0; }
-  .brow .bv.g { color:var(--green); }
-  .brow .bv.r { color:var(--red); }
-  .brow .bv.y { color:var(--yellow); }
+  .brow .bv.g { color:var(--green); } .brow .bv.r { color:var(--red); } .brow .bv.y { color:var(--yellow); }
   .brow.div { border-top:1px solid var(--border); padding-top:6px; margin-top:1px; }
   .brow.div .bl { color:var(--text); font-weight:600; font-size:0.84rem; }
   .brow.div .bv { font-size:0.9rem; }
 
-  /* BONOS */
-  .bonus-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
+  .bonus-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
   .bonus-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; display:flex; align-items:center; cursor:pointer; gap:11px; transition:border-color 0.2s,background 0.2s; user-select:none; }
   .bonus-item.active { border-color:var(--yellow); background:#1f1e0e; }
   .bonus-item.active .check-box { background:var(--yellow); border-color:var(--yellow); }
@@ -97,11 +86,9 @@
   .check-box::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:700; color:#111; opacity:0; transition:opacity 0.15s; }
   .bonus-name { font-size:0.83rem; font-weight:600; flex:1; }
   .bonus-pct { font-family:'Bebas Neue',cursive; font-size:1.15rem; color:var(--green); flex-shrink:0; }
-  .bonus-note { font-size:0.7rem; color:var(--muted); margin-top:1px; }
 
-  /* HISTORIAL DE DÍAS */
-  .dias-list { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-  .dia-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:13px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .dias-list { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .dia-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .dia-card.today { border-color:var(--yellow); }
   .dia-info .dia-fecha { font-weight:700; font-size:0.88rem; }
   .dia-info .dia-pedidos { font-size:0.73rem; color:var(--muted); margin-top:2px; }
@@ -110,17 +97,25 @@
   .dia-neto { font-family:'Bebas Neue',cursive; font-size:1.2rem; color:var(--green); }
   .btn-dia-del { background:none; border:none; color:var(--red); font-size:0.9rem; cursor:pointer; padding:4px; flex-shrink:0; }
 
-  /* RESUMEN MES */
-  .resumen-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:20px 18px; margin-bottom:16px; }
-  .res-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .resumen-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; }
+  .res-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .res-item { background:var(--card2); border-radius:10px; padding:10px 12px; }
-  .res-item .rl { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
-  .res-item .rv { font-family:'Bebas Neue',cursive; font-size:1.5rem; color:var(--yellow); line-height:1; }
+  .res-item .rl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
+  .res-item .rv { font-family:'Bebas Neue',cursive; font-size:1.4rem; color:var(--yellow); line-height:1; }
   .res-item .rv.g { color:var(--green); }
 
-  /* TABLA REF */
-  .toggle-ref { background:none; border:1px solid var(--border); color:var(--muted); border-radius:10px; padding:9px 13px; font-family:'DM Sans',sans-serif; font-size:0.8rem; cursor:pointer; width:100%; text-align:left; display:flex; justify-content:space-between; margin-bottom:16px; }
-  .ref-card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--border); margin-bottom:16px; }
+  /* EXPORT */
+  .export-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .export-card .row { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+  .export-card label { font-size:0.75rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:5px; }
+  .export-card input[type="date"] { background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--yellow); font-family:'DM Sans',sans-serif; font-size:0.88rem; padding:8px 10px; outline:none; width:100%; }
+  .export-card input[type="date"]:focus { border-color:var(--yellow); }
+  .btn-export { width:100%; background:var(--green); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.2rem; letter-spacing:1px; padding:12px; cursor:pointer; transition:opacity 0.2s,transform 0.1s; }
+  .btn-export:active { transform:scale(0.97); }
+  .btn-export:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .toggle-ref { background:none; border:1px solid var(--border); color:var(--muted); border-radius:10px; padding:9px 13px; font-family:'DM Sans',sans-serif; font-size:0.8rem; cursor:pointer; width:100%; text-align:left; display:flex; justify-content:space-between; margin-bottom:14px; }
+  .ref-card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--border); margin-bottom:14px; }
   .ref-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:7px; }
   .ref-table th { color:var(--muted); font-weight:600; text-align:left; padding:4px 0; font-size:0.7rem; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border); }
   .ref-table td { padding:7px 0; color:var(--text); border-bottom:1px solid #1e1e1e; }
@@ -129,21 +124,18 @@
   .ref-table td:nth-child(2), .ref-table th:nth-child(2) { text-align:center; }
   .ref-table td:last-child, .ref-table th:last-child { text-align:right; }
 
-  /* CONFIG */
   .config-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
   .config-row:last-child { border-bottom:none; }
   .config-label { font-size:0.85rem; font-weight:600; }
   .config-sub { font-size:0.73rem; color:var(--muted); margin-top:2px; }
-  .config-val { font-family:'Bebas Neue',cursive; font-size:1.3rem; color:var(--yellow); }
-
-  .btn-danger { background:none; border:1px solid var(--red); color:var(--red); border-radius:10px; padding:10px 16px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; width:100%; margin-top:16px; }
+  .btn-danger { background:none; border:1px solid var(--red); color:var(--red); border-radius:10px; padding:10px 16px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; width:100%; margin-top:14px; }
   .btn-danger:active { background:#2a1414; }
 
-  .empty-state { text-align:center; padding:30px 0; color:var(--muted); font-size:0.85rem; line-height:1.8; }
-  .empty-state .icon { font-size:2.5rem; display:block; margin-bottom:8px; }
+  .empty-state { text-align:center; padding:28px 0; color:var(--muted); font-size:0.85rem; line-height:1.8; }
+  .empty-state .icon { font-size:2.2rem; display:block; margin-bottom:8px; }
+  .loading { text-align:center; padding:20px; color:var(--muted); font-size:0.85rem; }
 
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; white-space:nowrap; }
-
   @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.015)} 100%{transform:scale(1)} }
   .pop { animation:pulse 0.3s ease; }
 </style>
@@ -152,13 +144,11 @@
 
 <header>
   <div class="header-top">
-    <div>
-      <h1>CALCULA<br>PEDIDOS</h1>
-    </div>
+    <h1>CALCULA<br>PEDIDOS</h1>
     <div class="header-user">
       <div class="user-name" id="headerName">—</div>
       <div class="user-month" id="headerMonth">—</div>
-      <button class="btn-logout" onclick="logout()">Cambiar usuario</button>
+      <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
   </div>
 </header>
@@ -166,499 +156,544 @@
 <div class="tabs">
   <div class="tab active" onclick="showTab('hoy')">📦 Hoy</div>
   <div class="tab" onclick="showTab('mes')">📅 Mes</div>
-  <div class="tab" onclick="showTab('config')">⚙️ Config</div>
+  <div class="tab" onclick="showTab('export')">📊 Export</div>
+  <div class="tab" onclick="showTab('config')">⚙️</div>
 </div>
 
-<!-- ===== TAB HOY ===== -->
 <div class="content">
-<div id="tab-hoy" class="tab-panel active">
 
+<!-- HOY -->
+<div id="tab-hoy" class="tab-panel active">
   <div class="section-label" style="margin-top:4px;">📦 SKUs por pedido</div>
   <div class="pedidos-list" id="pedidosList"></div>
   <button class="btn-add" onclick="agregarPedido()">＋ Agregar pedido</button>
-
-  <div class="section-label">💰 Resultado del día</div>
-  <div class="result-card" id="resultCard">
-    <div class="rlabel">Pago bruto</div>
-    <div class="rtotal" id="totalBruto">$0</div>
-    <div class="rlabel">Pago neto (con descuento)</div>
-    <div class="rneto" id="totalNeto">$0</div>
-    <div class="breakdown" id="breakdown">
-      <div style="color:var(--muted);font-size:0.82rem;">Agrega pedidos para ver el cálculo.</div>
-    </div>
-  </div>
 
   <div class="section-label">📅 Fecha del registro</div>
   <div class="input-card" style="margin-bottom:12px;">
     <div class="desc-row">
       <label>¿A qué día corresponde?</label>
-      <input type="date" id="fechaDia" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--yellow);font-family:'DM Sans',sans-serif;font-size:0.9rem;padding:8px 10px;outline:none;flex-shrink:0;max-width:160px;-webkit-appearance:none;">
+      <input type="date" id="fechaDia" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--yellow);font-family:'DM Sans',sans-serif;font-size:0.9rem;padding:8px 10px;outline:none;flex-shrink:0;max-width:160px;">
     </div>
   </div>
 
-  <button class="btn-save-day" onclick="guardarDia()">💾 GUARDAR DÍA</button>
+  <div class="section-label">💰 Resultado del día</div>
+  <div class="result-card" id="resultCard">
+    <div class="rlabel">Pago bruto</div>
+    <div class="rtotal" id="totalBruto">$0</div>
+    <div class="rlabel">Pago neto</div>
+    <div class="rneto" id="totalNeto">$0</div>
+    <div class="breakdown" id="breakdown"><div style="color:var(--muted);font-size:0.82rem;">Agrega pedidos para ver el cálculo.</div></div>
+  </div>
+
+  <button class="btn-save-day" id="btnGuardar" onclick="guardarDia()">💾 GUARDAR DÍA</button>
 
   <button class="toggle-ref" onclick="toggleRef()">
-    <span>📊 Ver tabla de tramos</span>
-    <span id="toggleIcon">▼</span>
+    <span>📊 Ver tabla de tramos</span><span id="toggleIcon">▼</span>
   </button>
   <div class="ref-card" id="refCard" style="display:none;">
     <table class="ref-table" id="refTable"></table>
   </div>
-
 </div>
 
-<!-- ===== TAB MES ===== -->
+<!-- MES -->
 <div id="tab-mes" class="tab-panel">
-
   <div class="section-label" style="margin-top:4px;">🎯 Bonificaciones del mes</div>
   <div class="bonus-grid" id="bonusGrid"></div>
 
   <div class="section-label">📅 Días registrados</div>
-  <div class="dias-list" id="diasList"></div>
+  <div class="dias-list" id="diasList"><div class="loading">Cargando...</div></div>
 
   <div class="section-label">📊 Resumen del mes</div>
-  <div class="resumen-card" id="resumenCard">
+  <div class="resumen-card">
     <div class="rlabel">Total neto del mes</div>
     <div class="rtotal" id="resNeto">$0</div>
     <div class="res-grid" id="resGrid"></div>
   </div>
-
 </div>
 
-<!-- ===== TAB CONFIG ===== -->
-<div id="tab-config" class="tab-panel">
+<!-- EXPORT -->
+<div id="tab-export" class="tab-panel">
+  <div class="section-label" style="margin-top:4px;">📊 Exportar a Excel</div>
+  <div class="export-card">
+    <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label>Desde</label>
+        <input type="date" id="exportDesde">
+      </div>
+      <div>
+        <label>Hasta</label>
+        <input type="date" id="exportHasta">
+      </div>
+    </div>
+    <button class="btn-export" id="btnExport" onclick="exportarExcel()">⬇️ DESCARGAR EXCEL</button>
+  </div>
+  <div style="font-size:0.78rem;color:var(--muted);line-height:1.7;padding:0 2px;">
+    El Excel incluye: fecha, pedidos, SKUs por pedido, bruto, descuento y neto de cada día en el rango seleccionado.
+  </div>
+</div>
 
+<!-- CONFIG -->
+<div id="tab-config" class="tab-panel">
   <div class="section-label" style="margin-top:4px;">⚙️ Configuración</div>
   <div class="input-card">
-    <div class="config-row" style="border:none;">
+    <div class="config-row">
       <div>
         <div class="config-label">Descuento</div>
-        <div class="config-sub">% aplicado sobre el pago bruto</div>
+        <div class="config-sub">% sobre el pago bruto</div>
       </div>
       <div class="desc-input-wrap">
-        <input type="number" id="descInput" value="18.5" min="0" max="100" step="0.1" oninput="guardarConfig(); calcular()">
+        <input type="number" id="descInput" value="18.5" min="0" max="100" step="0.1" oninput="guardarConfig();calcular()">
         <span>%</span>
       </div>
     </div>
-    <div class="config-row">
+    <div class="config-row" style="border:none;">
       <div>
         <div class="config-label">Base por tramo</div>
-        <div class="config-sub">1–50 SKUs: $1.000 &nbsp;·&nbsp; 51+ SKUs: $1.200</div>
+        <div class="config-sub">1–50 SKUs: $1.000 &nbsp;·&nbsp; 51+: $1.200</div>
       </div>
     </div>
   </div>
 
-  <div class="section-label">👤 Sesión</div>
+  <div class="section-label">👤 Cuenta</div>
   <div class="input-card">
     <div class="config-row" style="border:none;">
       <div>
-        <div class="config-label" id="configUserName">—</div>
-        <div class="config-sub">Usuario activo</div>
+        <div class="config-label" id="configEmail">—</div>
+        <div class="config-sub" id="configNombre">—</div>
       </div>
-      <button class="btn-logout" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:9px;font-size:0.8rem;cursor:pointer;" onclick="logout()">Salir</button>
+      <button onclick="logout()" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:9px;font-size:0.8rem;cursor:pointer;">Salir</button>
     </div>
   </div>
 
   <div class="section-label">🗑️ Datos</div>
   <div class="input-card">
-    <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;">Borra todos los días registrados del mes actual para este usuario. Esta acción no se puede deshacer.</div>
+    <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;">Borra todos los días del mes actual. Esta acción no se puede deshacer.</div>
     <button class="btn-danger" onclick="borrarMes()">🗑️ Borrar registros del mes</button>
   </div>
-
-</div>
 </div>
 
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── CONSTANTES ───────────────────────────────────────────
+// ── CONSTANTES ──────────────────────────────────────────
 const TRAMOS = [
-  { label:"1 a 10",  min:1,  max:10,       valor:120, base:1000 },
-  { label:"11 a 20", min:11, max:20,        valor:70,  base:1000 },
-  { label:"21 a 30", min:21, max:30,        valor:60,  base:1000 },
-  { label:"31 a 40", min:31, max:40,        valor:55,  base:1000 },
-  { label:"41 a 50", min:41, max:50,        valor:50,  base:1000 },
-  { label:"51+",     min:51, max:Infinity,  valor:40,  base:1200 },
-];
-
+  { label:'1 a 10',  min:1,  max:10,       valor:120, base:1000 },
+  { label:'11 a 20', min:11, max:20,        valor:70,  base:1000 },
+  { label:'21 a 30', min:21, max:30,        valor:60,  base:1000 },
+  { label:'31 a 40', min:31, max:40,        valor:55,  base:1000 },
+  { label:'41 a 50', min:41, max:50,        valor:50,  base:1000 },
+  { label:'51+',     min:51, max:Infinity,  valor:40,  base:1200 },
+]
 const BONOS_DEF = [
-  { nombre:"CSAT",                          pct:4  },
-  { nombre:"Contacto y Calidad de Llamado", pct:4  },
-  { nombre:"Casos / Cobrado no enviado",    pct:4  },
-  { nombre:"Found Rate",                    pct:4  },
-  { nombre:"Puntualidad y Asistencia",      pct:8  },
-];
+  { nombre:'CSAT', pct:4 },
+  { nombre:'Contacto y Calidad de Llamado', pct:4 },
+  { nombre:'Casos / Cobrado no enviado', pct:4 },
+  { nombre:'Found Rate', pct:4 },
+  { nombre:'Puntualidad y Asistencia', pct:8 },
+]
 
-// ─── ESTADO ───────────────────────────────────────────────
-let USUARIO = '';
-let bonosActivos = new Set();
-let pedidoCounter = 0;
+// ── ESTADO ──────────────────────────────────────────────
+let USER = null
+let PROFILE = null
+let bonosActivos = new Set()
+let pedidoCounter = 0
+let diasCache = []
 
-function mesKey() {
-  const d = new Date();
-  return `cp_${USUARIO}_${d.getFullYear()}_${d.getMonth()+1}`;
-}
-function configKey() { return `cp_config_${USUARIO}`; }
+// ── INIT ────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession()
+  if (!session) { window.location.href = 'index.html'; return }
+  USER = session.user
 
-function getConfig() {
-  try { return JSON.parse(localStorage.getItem(configKey()) || '{}'); } catch { return {}; }
-}
-function guardarConfig() {
-  const cfg = { descuento: parseFloat(document.getElementById('descInput').value) || 18.5 };
-  localStorage.setItem(configKey(), JSON.stringify(cfg));
-}
-function cargarConfig() {
-  const cfg = getConfig();
-  document.getElementById('descInput').value = cfg.descuento ?? 18.5;
-}
+  // Cargar perfil
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', USER.id).single()
+  PROFILE = profile
 
-function getDias() {
-  try { return JSON.parse(localStorage.getItem(mesKey()) || '[]'); } catch { return []; }
-}
-function saveDias(dias) { localStorage.setItem(mesKey(), JSON.stringify(dias)); }
+  const nombre = profile?.nombre || USER.email
+  document.getElementById('headerName').textContent = nombre
+  document.getElementById('configEmail').textContent = USER.email
+  document.getElementById('configNombre').textContent = nombre
 
-function getBonos() {
-  try { return JSON.parse(localStorage.getItem(`cp_bonos_${USUARIO}`) || '[]'); } catch { return []; }
-}
-function saveBonos(arr) { localStorage.setItem(`cp_bonos_${USUARIO}`, JSON.stringify(arr)); }
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const d = new Date()
+  document.getElementById('headerMonth').textContent = meses[d.getMonth()] + ' ' + d.getFullYear()
 
-// ─── INICIO ───────────────────────────────────────────────
-function init() {
-  USUARIO = localStorage.getItem('cp_usuario_activo') || '';
-  if (!USUARIO) { window.location.href = 'index.html'; return; }
+  // Fecha hoy
+  document.getElementById('fechaDia').value = d.toISOString().split('T')[0]
 
-  document.getElementById('headerName').textContent = USUARIO;
-  document.getElementById('configUserName').textContent = USUARIO;
-  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const d = new Date();
-  document.getElementById('headerMonth').textContent = meses[d.getMonth()] + ' ' + d.getFullYear();
+  // Fechas export: primer día del mes hasta hoy
+  const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  document.getElementById('exportDesde').value = primerDia
+  document.getElementById('exportHasta').value = d.toISOString().split('T')[0]
 
-  cargarConfig();
-  buildBonusGrid();
-  cargarBonosGuardados();
-  buildRefTable();
-  agregarPedido();
-  // Setear fecha de hoy por defecto
-  const hoyISO = new Date().toISOString().split('T')[0];
-  document.getElementById('fechaDia').value = hoyISO;
-  renderDias();
+  await cargarConfig()
+  buildBonusGrid()
+  await cargarBonos()
+  buildRefTable()
+  agregarPedido()
+  await cargarDias()
 }
 
-// ─── TABS ─────────────────────────────────────────────────
+// ── AUTH ────────────────────────────────────────────────
+async function logout() {
+  await sb.auth.signOut()
+  window.location.href = 'index.html'
+}
+
+// ── TABS ────────────────────────────────────────────────
 function showTab(name) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  const idx = ['hoy','mes','config'].indexOf(name);
-  document.querySelectorAll('.tab')[idx].classList.add('active');
-  if (name === 'mes') renderDias();
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById('tab-' + name).classList.add('active')
+  const idx = ['hoy','mes','export','config'].indexOf(name)
+  document.querySelectorAll('.tab')[idx].classList.add('active')
+  if (name === 'mes') renderDias()
 }
 
-// ─── PEDIDOS ──────────────────────────────────────────────
-function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null; }
-function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
-function getDescPct() { return parseFloat(document.getElementById('descInput')?.value) || 18.5; }
+// ── CONFIG ──────────────────────────────────────────────
+async function cargarConfig() {
+  const { data } = await sb.from('config').select('*').eq('user_id', USER.id).single()
+  if (data) document.getElementById('descInput').value = data.descuento
+}
+async function guardarConfig() {
+  const descuento = parseFloat(document.getElementById('descInput').value) || 18.5
+  await sb.from('config').upsert({ user_id: USER.id, descuento }, { onConflict: 'user_id' })
+}
 
+// ── HELPERS ─────────────────────────────────────────────
+function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null }
+function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL') }
+function getDescPct() { return parseFloat(document.getElementById('descInput')?.value) || 18.5 }
+
+// ── PEDIDOS ─────────────────────────────────────────────
 function agregarPedido() {
-  pedidoCounter++;
-  const id = pedidoCounter;
-  const list = document.getElementById('pedidosList');
-  const row = document.createElement('div');
-  row.className = 'pedido-row';
-  row.id = 'pedido-' + id;
-  const num = list.children.length + 1;
+  pedidoCounter++
+  const id = pedidoCounter
+  const list = document.getElementById('pedidosList')
+  const row = document.createElement('div')
+  row.className = 'pedido-row'; row.id = 'pedido-' + id
   row.innerHTML = `
-    <div class="pedido-num">#${num}</div>
+    <div class="pedido-num">#${list.children.length + 1}</div>
     <div class="pedido-skus">
       <button class="btn-step" onclick="stepPedido(${id},-1)">−</button>
       <input class="num-input" id="sku-${id}" type="number" value="1" min="1" max="999" oninput="calcular()">
       <button class="btn-step" onclick="stepPedido(${id},1)">+</button>
     </div>
     <div class="pedido-tramo" id="tramo-${id}"><span>$120/SKU</span></div>
-    <button class="btn-del" onclick="eliminarPedido(${id})">✕</button>
-  `;
-  list.appendChild(row);
-  renumerarPedidos();
-  calcular();
+    <button class="btn-del" onclick="eliminarPedido(${id})">✕</button>`
+  list.appendChild(row)
+  renumerarPedidos(); calcular()
 }
-
-function stepPedido(id, delta) {
-  const inp = document.getElementById('sku-' + id);
-  let v = (parseInt(inp.value)||0) + delta;
-  if (v < 1) v = 1;
-  inp.value = v;
-  calcular();
+function stepPedido(id, d) {
+  const inp = document.getElementById('sku-' + id)
+  let v = (parseInt(inp.value)||0) + d; if (v < 1) v = 1
+  inp.value = v; calcular()
 }
-
 function eliminarPedido(id) {
-  document.getElementById('pedido-' + id)?.remove();
-  renumerarPedidos();
-  calcular();
+  document.getElementById('pedido-' + id)?.remove()
+  renumerarPedidos(); calcular()
 }
-
 function renumerarPedidos() {
-  document.querySelectorAll('.pedido-row').forEach((r,i) => {
-    r.querySelector('.pedido-num').textContent = '#' + (i+1);
-  });
+  document.querySelectorAll('.pedido-row').forEach((r,i) => r.querySelector('.pedido-num').textContent = '#'+(i+1))
 }
-
 function getPedidos() {
   return Array.from(document.querySelectorAll('.pedido-row')).map(r => {
-    const id = r.id.replace('pedido-','');
-    return { id, skus: parseInt(document.getElementById('sku-'+id)?.value)||0 };
-  });
+    const id = r.id.replace('pedido-','')
+    return { id, skus: parseInt(document.getElementById('sku-'+id)?.value)||0 }
+  })
 }
 
-// ─── CALCULAR ─────────────────────────────────────────────
+// ── CALCULAR ────────────────────────────────────────────
 function calcular() {
-  const pedidos = getPedidos();
-  const descPct = getDescPct();
-
+  const pedidos = getPedidos()
+  const descPct = getDescPct()
   pedidos.forEach(p => {
-    const tr = getTramo(p.skus);
-    const el = document.getElementById('tramo-' + p.id);
-    if (el) el.innerHTML = tr ? `<span>$${tr.valor}/SKU</span>` : '<span style="color:var(--muted)">—</span>';
-  });
-
-  document.querySelectorAll('#refTable tr[data-tramo]').forEach(r => r.classList.remove('hl'));
-
+    const tr = getTramo(p.skus)
+    const el = document.getElementById('tramo-' + p.id)
+    if (el) el.innerHTML = tr ? `<span>$${tr.valor}/SKU</span>` : '<span style="color:var(--muted)">—</span>'
+  })
+  document.querySelectorAll('#refTable tr[data-tramo]').forEach(r => r.classList.remove('hl'))
   if (pedidos.length === 0) {
-    document.getElementById('totalBruto').textContent = '$0';
-    document.getElementById('totalNeto').textContent = '$0';
-    document.getElementById('breakdown').innerHTML = '<div style="color:var(--muted);font-size:0.82rem;">Agrega pedidos para ver el cálculo.</div>';
-    return;
+    document.getElementById('totalBruto').textContent = '$0'
+    document.getElementById('totalNeto').textContent = '$0'
+    document.getElementById('breakdown').innerHTML = '<div style="color:var(--muted);font-size:0.82rem;">Agrega pedidos para ver el cálculo.</div>'
+    return
   }
-
-  let subTotal = 0;
-  let detalleHTML = '';
-  const tramosUsados = new Set();
-
+  let subTotal = 0, detalleHTML = ''
+  const tramosUsados = new Set()
   pedidos.forEach((p, idx) => {
-    const tr = getTramo(p.skus);
-    if (!tr) return;
-    tramosUsados.add(tr.label);
-    const pago = p.skus * tr.valor + tr.base;
-    subTotal += pago;
-    detalleHTML += `<div class="brow"><span class="bl">Pedido ${idx+1}: ${p.skus} SKUs×$${tr.valor} +$${tr.base.toLocaleString('es-CL')}</span><span class="bv">${fmt(pago)}</span></div>`;
-  });
-
-  if (pedidos.length > 1) detalleHTML += `<div class="brow div"><span class="bl">Subtotal</span><span class="bv">${fmt(subTotal)}</span></div>`;
-
-  const bruto = subTotal;
-  const desc = bruto * (descPct / 100);
-  const neto = bruto - desc;
-
-  document.getElementById('totalBruto').textContent = fmt(bruto);
-  document.getElementById('totalNeto').textContent = fmt(neto);
-
-  let html = detalleHTML;
-  html += `<div class="brow div"><span class="bl">Bruto total</span><span class="bv y">${fmt(bruto)}</span></div>`;
-  html += `<div class="brow"><span class="bl">Descuento ${descPct}%</span><span class="bv r">− ${fmt(desc)}</span></div>`;
-  html += `<div class="brow div"><span class="bl">💵 NETO DÍA</span><span class="bv g">${fmt(neto)}</span></div>`;
-  document.getElementById('breakdown').innerHTML = html;
-
+    const tr = getTramo(p.skus); if (!tr) return
+    tramosUsados.add(tr.label)
+    const pago = p.skus * tr.valor + tr.base
+    subTotal += pago
+    detalleHTML += `<div class="brow"><span class="bl">Pedido ${idx+1}: ${p.skus} SKUs×$${tr.valor} +$${tr.base.toLocaleString('es-CL')}</span><span class="bv">${fmt(pago)}</span></div>`
+  })
+  if (pedidos.length > 1) detalleHTML += `<div class="brow div"><span class="bl">Subtotal</span><span class="bv">${fmt(subTotal)}</span></div>`
+  const desc = subTotal * (descPct / 100)
+  const neto = subTotal - desc
+  document.getElementById('totalBruto').textContent = fmt(subTotal)
+  document.getElementById('totalNeto').textContent = fmt(neto)
+  let html = detalleHTML
+  html += `<div class="brow div"><span class="bl">Bruto total</span><span class="bv y">${fmt(subTotal)}</span></div>`
+  html += `<div class="brow"><span class="bl">Descuento ${descPct}%</span><span class="bv r">− ${fmt(desc)}</span></div>`
+  html += `<div class="brow div"><span class="bl">💵 NETO DÍA</span><span class="bv g">${fmt(neto)}</span></div>`
+  document.getElementById('breakdown').innerHTML = html
   tramosUsados.forEach(label => {
-    document.querySelectorAll('#refTable tr[data-tramo]').forEach(r => { if (r.dataset.tramo === label) r.classList.add('hl'); });
-  });
-
-  const rc = document.getElementById('resultCard');
-  rc.classList.remove('pop'); void rc.offsetWidth; rc.classList.add('pop');
+    document.querySelectorAll('#refTable tr[data-tramo]').forEach(r => { if (r.dataset.tramo === label) r.classList.add('hl') })
+  })
+  const rc = document.getElementById('resultCard')
+  rc.classList.remove('pop'); void rc.offsetWidth; rc.classList.add('pop')
 }
 
-// ─── GUARDAR DÍA ──────────────────────────────────────────
-function guardarDia() {
-  const pedidos = getPedidos();
-  if (pedidos.length === 0) { showToast('⚠️ Agrega al menos un pedido'); return; }
+// ── GUARDAR DÍA ─────────────────────────────────────────
+async function guardarDia() {
+  const pedidos = getPedidos()
+  if (pedidos.length === 0) { showToast('⚠️ Agrega al menos un pedido'); return }
+  const fechaISO = document.getElementById('fechaDia').value
+  if (!fechaISO) { showToast('⚠️ Selecciona una fecha'); return }
 
-  const descPct = getDescPct();
+  const btn = document.getElementById('btnGuardar')
+  btn.disabled = true
 
-  // Usar fecha seleccionada, formateada en es-CL
-  const fechaISO = document.getElementById('fechaDia').value;
-  if (!fechaISO) { showToast('⚠️ Selecciona una fecha'); return; }
-  const [y, m, d] = fechaISO.split('-');
-  const fechaLabel = `${d}/${m}/${y}`;
+  const descPct = getDescPct()
+  const [y, m, d] = fechaISO.split('-')
+  const fechaLabel = `${d}/${m}/${y}`
 
-  let subTotal = 0;
-  const detalle = [];
+  let subTotal = 0
+  const detalle = []
   pedidos.forEach((p,i) => {
-    const tr = getTramo(p.skus);
-    if (!tr) return;
-    const pago = p.skus * tr.valor + tr.base;
-    subTotal += pago;
-    detalle.push({ idx: i+1, skus: p.skus, valor: tr.valor, base: tr.base, pago });
-  });
+    const tr = getTramo(p.skus); if (!tr) return
+    const pago = p.skus * tr.valor + tr.base
+    subTotal += pago
+    detalle.push({ idx:i+1, skus:p.skus, valor:tr.valor, base:tr.base, pago })
+  })
+  const desc = subTotal * (descPct / 100)
+  const neto = subTotal - desc
 
-  const bruto = subTotal;
-  const desc = bruto * (descPct / 100);
-  const neto = bruto - desc;
+  const { error } = await sb.from('dias').upsert({
+    user_id: USER.id,
+    fecha: fechaISO,
+    fecha_label: fechaLabel,
+    pedidos: detalle,
+    bruto: subTotal,
+    descuento: desc,
+    neto,
+    desc_pct: descPct
+  }, { onConflict: 'user_id,fecha' })
 
-  const dias = getDias();
-  const existing = dias.findIndex(d => d.fecha === fechaLabel);
-  const registro = { fecha: fechaLabel, fechaISO, pedidos: detalle, bruto, desc, neto, descPct };
-  if (existing >= 0) {
-    dias[existing] = registro;
-    showToast('✏️ Día actualizado');
-  } else {
-    dias.push(registro);
-    // Ordenar por fecha
-    dias.sort((a, b) => (a.fechaISO || '') > (b.fechaISO || '') ? 1 : -1);
-    showToast('✅ Día guardado');
+  if (error) { showToast('❌ Error al guardar'); console.error(error) }
+  else {
+    showToast('✅ Día guardado')
+    await cargarDias()
   }
-  saveDias(dias);
-  renderDias();
+  btn.disabled = false
 }
 
-// ─── BONOS ────────────────────────────────────────────────
-function buildBonusGrid() {
-  const grid = document.getElementById('bonusGrid');
-  grid.innerHTML = '';
-  BONOS_DEF.forEach((b,i) => {
-    const div = document.createElement('div');
-    div.className = 'bonus-item';
-    div.id = 'bono-' + i;
-    div.innerHTML = `<div class="check-box"></div><div><div class="bonus-name">${b.nombre}</div><div class="bonus-note">Sobre base total del mes</div></div><div class="bonus-pct">+${b.pct}%</div>`;
-    div.addEventListener('click', () => {
-      bonosActivos.has(i) ? bonosActivos.delete(i) : bonosActivos.add(i);
-      div.classList.toggle('active');
-      saveBonos([...bonosActivos]);
-      renderResumen();
-    });
-    grid.appendChild(div);
-  });
+// ── CARGAR DÍAS ─────────────────────────────────────────
+async function cargarDias() {
+  const d = new Date()
+  const desde = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  const hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+
+  const { data } = await sb.from('dias')
+    .select('*')
+    .eq('user_id', USER.id)
+    .gte('fecha', desde)
+    .lte('fecha', hasta)
+    .order('fecha', { ascending: false })
+
+  diasCache = data || []
+  renderDias()
 }
 
-function cargarBonosGuardados() {
-  const saved = getBonos();
-  saved.forEach(i => {
-    bonosActivos.add(i);
-    document.getElementById('bono-' + i)?.classList.add('active');
-  });
-}
-
-// ─── HISTORIAL ────────────────────────────────────────────
 function renderDias() {
-  const dias = getDias();
-  const list = document.getElementById('diasList');
-  const hoyISO = new Date().toISOString().split('T')[0];
-
-  if (dias.length === 0) {
-    list.innerHTML = `<div class="empty-state"><span class="icon">📋</span>No hay días registrados este mes.<br>Ve a la pestaña <strong>Hoy</strong> y guarda tu primer día.</div>`;
+  const list = document.getElementById('diasList')
+  const hoyISO = new Date().toISOString().split('T')[0]
+  if (diasCache.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span class="icon">📋</span>No hay días registrados este mes.</div>`
   } else {
-    list.innerHTML = '';
-    dias.slice().reverse().forEach((d,i) => {
-      const card = document.createElement('div');
-      const esHoy = (d.fechaISO === hoyISO);
-      card.className = 'dia-card' + (esHoy ? ' today' : '');
-      const pedStr = d.pedidos.map(p => p.skus + ' SKUs').join(', ');
+    list.innerHTML = ''
+    diasCache.forEach(d => {
+      const card = document.createElement('div')
+      card.className = 'dia-card' + (d.fecha === hoyISO ? ' today' : '')
+      const pedStr = d.pedidos.map(p => p.skus + ' SKUs').join(', ')
       card.innerHTML = `
         <div class="dia-info">
-          <div class="dia-fecha">${d.fecha}${esHoy ? ' 📍' : ''}</div>
+          <div class="dia-fecha">${d.fecha_label}${d.fecha === hoyISO ? ' 📍' : ''}</div>
           <div class="dia-pedidos">${d.pedidos.length} pedido(s): ${pedStr}</div>
         </div>
         <div class="dia-nums">
           <div class="dia-bruto">Bruto: ${fmt(d.bruto)}</div>
           <div class="dia-neto">${fmt(d.neto)}</div>
         </div>
-        <button class="btn-dia-del" onclick="eliminarDia('${d.fecha}')">✕</button>
-      `;
-      list.appendChild(card);
-    });
+        <button class="btn-dia-del" onclick="eliminarDia('${d.fecha}')">✕</button>`
+      list.appendChild(card)
+    })
   }
-  renderResumen();
+  renderResumen()
 }
 
-function eliminarDia(fecha) {
-  let dias = getDias().filter(d => d.fecha !== fecha);
-  saveDias(dias);
-  renderDias();
-  showToast('🗑️ Día eliminado');
+async function eliminarDia(fecha) {
+  await sb.from('dias').delete().eq('user_id', USER.id).eq('fecha', fecha)
+  showToast('🗑️ Día eliminado')
+  await cargarDias()
 }
 
-// ─── RESUMEN MES ──────────────────────────────────────────
+// ── RESUMEN ─────────────────────────────────────────────
 function renderResumen() {
-  const dias = getDias();
-
-  let totalBruto = 0, totalNeto = 0, totalPedidos = 0, totalSKUs = 0, totalBase = 0;
-  dias.forEach(d => {
-    totalBruto += d.bruto;
-    totalNeto += d.neto;
-    totalPedidos += d.pedidos.length;
-    d.pedidos.forEach(p => { totalSKUs += p.skus; totalBase += (p.base || 1000); });
-  });
-
-  // Bonos sobre suma real de bases del mes
-  const descPct = getDescPct();
-  let totalBonosMonto = 0;
-  let bonosHTML = '';
+  let totalBruto = 0, totalNeto = 0, totalPedidos = 0, totalSKUs = 0, totalBase = 0
+  diasCache.forEach(d => {
+    totalBruto += d.bruto; totalNeto += d.neto
+    totalPedidos += d.pedidos.length
+    d.pedidos.forEach(p => { totalSKUs += p.skus; totalBase += (p.base || 1000) })
+  })
+  const descPct = getDescPct()
+  let totalBonosMonto = 0, bonosHTML = ''
   bonosActivos.forEach(i => {
-    const b = BONOS_DEF[i];
-    const monto = totalBase * (b.pct / 100);
-    totalBonosMonto += monto;
-    const montoNeto = monto * (1 - descPct/100);
-    bonosHTML += `<div class="res-item"><div class="rl">${b.nombre} +${b.pct}%</div><div class="rv g">${fmt(montoNeto)}</div></div>`;
-  });
-
-  const bonosNeto = totalBonosMonto * (1 - descPct/100);
-  const netoFinal = totalNeto + bonosNeto;
-
-  document.getElementById('resNeto').textContent = fmt(netoFinal);
-
+    const b = BONOS_DEF[i]
+    const monto = totalBase * (b.pct / 100)
+    totalBonosMonto += monto
+    bonosHTML += `<div class="res-item"><div class="rl">${b.nombre} +${b.pct}%</div><div class="rv g">${fmt(monto*(1-descPct/100))}</div></div>`
+  })
+  const bonosNeto = totalBonosMonto * (1 - descPct/100)
+  document.getElementById('resNeto').textContent = fmt(totalNeto + bonosNeto)
   document.getElementById('resGrid').innerHTML = `
-    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${dias.length}</div></div>
+    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${diasCache.length}</div></div>
     <div class="res-item"><div class="rl">Total pedidos</div><div class="rv">${totalPedidos}</div></div>
     <div class="res-item"><div class="rl">Total SKUs</div><div class="rv">${totalSKUs}</div></div>
     <div class="res-item"><div class="rl">Bruto pedidos</div><div class="rv">${fmt(totalBruto)}</div></div>
     <div class="res-item"><div class="rl">Neto pedidos</div><div class="rv g">${fmt(totalNeto)}</div></div>
     <div class="res-item"><div class="rl">Bonos netos</div><div class="rv g">${fmt(bonosNeto)}</div></div>
-    ${bonosHTML}
-  `;
+    ${bonosHTML}`
 }
 
-// ─── TABLA REF ────────────────────────────────────────────
+// ── BONOS ───────────────────────────────────────────────
+function buildBonusGrid() {
+  const grid = document.getElementById('bonusGrid'); grid.innerHTML = ''
+  BONOS_DEF.forEach((b,i) => {
+    const div = document.createElement('div')
+    div.className = 'bonus-item'; div.id = 'bono-' + i
+    div.innerHTML = `<div class="check-box"></div><div class="bonus-name">${b.nombre}</div><div class="bonus-pct">+${b.pct}%</div>`
+    div.addEventListener('click', async () => {
+      bonosActivos.has(i) ? bonosActivos.delete(i) : bonosActivos.add(i)
+      div.classList.toggle('active')
+      await guardarBonos()
+      renderResumen()
+    })
+    grid.appendChild(div)
+  })
+}
+async function cargarBonos() {
+  const d = new Date()
+  const { data } = await sb.from('bonos').select('*').eq('user_id', USER.id).eq('mes', d.getMonth()+1).eq('anio', d.getFullYear()).single()
+  if (data?.bonos_activos) {
+    bonosActivos = new Set(data.bonos_activos)
+    bonosActivos.forEach(i => document.getElementById('bono-'+i)?.classList.add('active'))
+  }
+}
+async function guardarBonos() {
+  const d = new Date()
+  await sb.from('bonos').upsert({
+    user_id: USER.id, mes: d.getMonth()+1, anio: d.getFullYear(),
+    bonos_activos: [...bonosActivos]
+  }, { onConflict: 'user_id,mes,anio' })
+}
+
+// ── EXPORT EXCEL ────────────────────────────────────────
+async function exportarExcel() {
+  const desde = document.getElementById('exportDesde').value
+  const hasta = document.getElementById('exportHasta').value
+  if (!desde || !hasta) { showToast('⚠️ Selecciona rango de fechas'); return }
+
+  const btn = document.getElementById('btnExport')
+  btn.disabled = true; btn.textContent = 'Generando...'
+
+  const { data } = await sb.from('dias')
+    .select('*')
+    .eq('user_id', USER.id)
+    .gte('fecha', desde)
+    .lte('fecha', hasta)
+    .order('fecha', { ascending: true })
+
+  if (!data || data.length === 0) {
+    showToast('⚠️ No hay datos en ese rango')
+    btn.disabled = false; btn.textContent = '⬇️ DESCARGAR EXCEL'
+    return
+  }
+
+  // Construir filas
+  const rows = []
+  data.forEach(d => {
+    d.pedidos.forEach((p, i) => {
+      rows.push({
+        'Fecha': d.fecha_label,
+        'Pedido #': p.idx,
+        'SKUs': p.skus,
+        'Tramo ($/SKU)': p.valor,
+        'Base': p.base,
+        'Bruto pedido': p.pago,
+        'Bruto día': i === 0 ? d.bruto : '',
+        'Descuento %': i === 0 ? d.desc_pct : '',
+        'Descuento $': i === 0 ? d.descuento : '',
+        'Neto día': i === 0 ? d.neto : '',
+      })
+    })
+  })
+
+  // Fila de totales
+  const totalBruto = data.reduce((s,d) => s + d.bruto, 0)
+  const totalNeto = data.reduce((s,d) => s + d.neto, 0)
+  rows.push({})
+  rows.push({ 'Fecha': 'TOTAL', 'Bruto día': totalBruto, 'Neto día': totalNeto })
+
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Ganancias')
+
+  const nombre = PROFILE?.nombre || 'usuario'
+  XLSX.writeFile(wb, `ganancias_${nombre}_${desde}_${hasta}.xlsx`)
+
+  showToast('✅ Excel descargado')
+  btn.disabled = false; btn.textContent = '⬇️ DESCARGAR EXCEL'
+}
+
+// ── TABLA REF ───────────────────────────────────────────
 function buildRefTable() {
-  const tbl = document.getElementById('refTable');
-  tbl.innerHTML = `<tr><th>Tramo SKUs</th><th>$/SKU</th><th>Base</th></tr>`;
+  const tbl = document.getElementById('refTable')
+  tbl.innerHTML = `<tr><th>Tramo SKUs</th><th>$/SKU</th><th>Base</th></tr>`
   TRAMOS.forEach(t => {
-    const tr = document.createElement('tr');
-    tr.dataset.tramo = t.label;
-    tr.innerHTML = `<td>${t.label}</td><td>$${t.valor.toLocaleString('es-CL')}</td><td>$${t.base.toLocaleString('es-CL')}</td>`;
-    tbl.appendChild(tr);
-  });
+    const tr = document.createElement('tr'); tr.dataset.tramo = t.label
+    tr.innerHTML = `<td>${t.label}</td><td>$${t.valor.toLocaleString('es-CL')}</td><td>$${t.base.toLocaleString('es-CL')}</td>`
+    tbl.appendChild(tr)
+  })
 }
-
 function toggleRef() {
-  const card = document.getElementById('refCard');
-  const icon = document.getElementById('toggleIcon');
-  const open = card.style.display === 'none';
-  card.style.display = open ? 'block' : 'none';
-  icon.textContent = open ? '▲' : '▼';
+  const card = document.getElementById('refCard'), icon = document.getElementById('toggleIcon')
+  const open = card.style.display === 'none'
+  card.style.display = open ? 'block' : 'none'
+  icon.textContent = open ? '▲' : '▼'
 }
 
-// ─── UTILS ────────────────────────────────────────────────
+// ── UTILS ───────────────────────────────────────────────
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, 2200);
+  const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'
+  setTimeout(() => t.style.display = 'none', 2200)
+}
+async function borrarMes() {
+  if (!confirm('¿Borrar todos los días de este mes?')) return
+  const d = new Date()
+  const desde = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  const hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+  await sb.from('dias').delete().eq('user_id', USER.id).gte('fecha', desde).lte('fecha', hasta)
+  await sb.from('bonos').delete().eq('user_id', USER.id).eq('mes', d.getMonth()+1).eq('anio', d.getFullYear())
+  bonosActivos.clear()
+  document.querySelectorAll('.bonus-item').forEach(el => el.classList.remove('active'))
+  await cargarDias()
+  showToast('🗑️ Mes borrado')
 }
 
-function logout() {
-  localStorage.removeItem('cp_usuario_activo');
-  window.location.href = 'index.html';
-}
-
-function borrarMes() {
-  if (!confirm('¿Borrar todos los días registrados este mes?')) return;
-  localStorage.removeItem(mesKey());
-  localStorage.removeItem(`cp_bonos_${USUARIO}`);
-  bonosActivos.clear();
-  document.querySelectorAll('.bonus-item').forEach(el => el.classList.remove('active'));
-  renderDias();
-  showToast('🗑️ Datos del mes borrados');
-}
-
-init();
+init()
 </script>
 </body>
 </html>
