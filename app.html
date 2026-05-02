@@ -197,7 +197,14 @@
 
 <!-- MES -->
 <div id="tab-mes" class="tab-panel">
-  <div class="section-label" style="margin-top:4px;">🎯 Bonificaciones del mes</div>
+  <!-- Navegador de meses -->
+  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin:4px 0 14px;">
+    <button onclick="cambiarMes(-1)" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">‹</button>
+    <div style="font-family:'Bebas Neue',cursive;font-size:1.1rem;letter-spacing:1px;" id="mesNavLabel">—</div>
+    <button onclick="cambiarMes(1)" id="btnMesSig" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">›</button>
+  </div>
+
+  <div class="section-label">🎯 Bonificaciones del mes</div>
   <div class="bonus-grid" id="bonusGrid"></div>
 
   <div class="section-label">📅 Días registrados</div>
@@ -299,6 +306,7 @@ let PROFILE = null
 let bonosActivos = new Set()
 let pedidoCounter = 0
 let diasCache = []
+let mesOffset = 0
 
 // ── INIT ────────────────────────────────────────────────
 async function init() {
@@ -344,13 +352,19 @@ async function logout() {
 }
 
 // ── TABS ────────────────────────────────────────────────
+function cambiarMes(delta) {
+  mesOffset += delta
+  if (mesOffset > 0) mesOffset = 0 // No avanzar más allá del mes actual
+  cargarDias()
+}
+
 function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
   document.getElementById('tab-' + name).classList.add('active')
   const idx = ['hoy','mes','export','config'].indexOf(name)
   document.querySelectorAll('.tab')[idx].classList.add('active')
-  if (name === 'mes') renderDias()
+  if (name === 'mes') cargarDias()
 }
 
 // ── CONFIG ──────────────────────────────────────────────
@@ -515,8 +529,16 @@ async function guardarDia() {
 // ── CARGAR DÍAS ─────────────────────────────────────────
 async function cargarDias() {
   const d = new Date()
-  const desde = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+  const ref = new Date(d.getFullYear(), d.getMonth() + mesOffset, 1)
+  const desde = new Date(ref.getFullYear(), ref.getMonth(), 1).toISOString().split('T')[0]
+  const hasta = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).toISOString().split('T')[0]
+
+  // Actualizar label del navegador de mes
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  document.getElementById('mesNavLabel').textContent = meses[ref.getMonth()] + ' ' + ref.getFullYear()
+  // Deshabilitar botón siguiente si ya estamos en el mes actual
+  document.getElementById('btnMesSig').style.opacity = mesOffset >= 0 ? '0.3' : '1'
+  document.getElementById('btnMesSig').style.pointerEvents = mesOffset >= 0 ? 'none' : 'auto'
 
   const { data } = await sb.from('dias')
     .select('*')
