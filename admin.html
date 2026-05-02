@@ -56,11 +56,17 @@
 
 <div class="content">
 
-  <div class="section-label" style="margin-top:8px;">📊 Exportar todos los usuarios</div>
+  <div class="section-label" style="margin-top:8px;">📊 Rango de fechas</div>
   <div class="export-card">
+    <!-- Navegador rápido de meses -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:12px;">
+      <button onclick="cambiarMesAdmin(-1)" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">‹</button>
+      <div style="font-family:'Bebas Neue',cursive;font-size:1rem;letter-spacing:1px;" id="mesAdminLabel">—</div>
+      <button onclick="cambiarMesAdmin(1)" id="btnMesAdminSig" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">›</button>
+    </div>
     <div class="dates-row">
-      <div><label>Desde</label><input type="date" id="exportDesde"></div>
-      <div><label>Hasta</label><input type="date" id="exportHasta"></div>
+      <div><label>Desde</label><input type="date" id="exportDesde" onchange="cargarUsuarios()"></div>
+      <div><label>Hasta</label><input type="date" id="exportHasta" onchange="cargarUsuarios()"></div>
     </div>
     <button class="btn-export" id="btnExportAll" onclick="exportarTodos()">⬇️ EXPORTAR TODOS</button>
   </div>
@@ -74,6 +80,28 @@
 <script>
 let USER = null
 let allUsers = []
+let mesOffsetAdmin = 0
+
+function actualizarMesAdminLabel() {
+  const d = new Date()
+  const ref = new Date(d.getFullYear(), d.getMonth() + mesOffsetAdmin, 1)
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  document.getElementById('mesAdminLabel').textContent = meses[ref.getMonth()] + ' ' + ref.getFullYear()
+  document.getElementById('btnMesAdminSig').style.opacity = mesOffsetAdmin >= 0 ? '0.3' : '1'
+  document.getElementById('btnMesAdminSig').style.pointerEvents = mesOffsetAdmin >= 0 ? 'none' : 'auto'
+  // Actualizar fechas
+  const desde = new Date(ref.getFullYear(), ref.getMonth(), 1).toISOString().split('T')[0]
+  const hasta = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).toISOString().split('T')[0]
+  document.getElementById('exportDesde').value = desde
+  document.getElementById('exportHasta').value = hasta
+}
+
+function cambiarMesAdmin(delta) {
+  mesOffsetAdmin += delta
+  if (mesOffsetAdmin > 0) mesOffsetAdmin = 0
+  actualizarMesAdminLabel()
+  cargarUsuarios()
+}
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession()
@@ -84,10 +112,7 @@ async function init() {
   if (!profile?.es_admin) { window.location.href = 'app.html'; return }
 
   const d = new Date()
-  const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-  document.getElementById('exportDesde').value = primerDia
-  document.getElementById('exportHasta').value = d.toISOString().split('T')[0]
-
+  actualizarMesAdminLabel()
   await cargarUsuarios()
 }
 
