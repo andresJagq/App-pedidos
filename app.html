@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>CalculaPedidos</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f5e642">
+<meta name="theme-color" content="#34d399">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pedidos">
@@ -18,43 +18,54 @@
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Tema oscuro (por defecto) */
+  /* Tema oscuro (por defecto) — acento verde menta */
   :root {
-    --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80;
-    --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e;
-    --brand:#f5e642;              /* amarillo de marca (header/botones) — igual en ambos temas */
-    --grad1:#1f1e0e; --grad2:#1a1a1a;  /* fondo de tarjetas destacadas */
-    --accent-soft:#1f1e0e;         /* fondo de bono activo */
-    --danger-soft:#2a1414;         /* fondo rojo suave */
-    --divider:#1e1e1e;             /* líneas de tabla */
+    --bg:#0f0f0f; --card:#191919; --card2:#242424; --green:#4ade80;
+    --red:#f87171; --muted:#6b6b6b; --text:#f0f0f0; --border:#2b2b2b;
+    --yellow:#34d399;             /* acento (texto/números) */
+    --brand:#34d399;             /* acento de superficies (íconos/botones/nav) */
+    --brand2:#6ee7b7;            /* acento claro para degradados */
+    --on-brand:#06281b;          /* texto sobre superficies de acento */
+    --grad1:#0f241c; --grad2:#171717;  /* fondo de tarjetas destacadas */
+    --accent-soft:#0f241c;        /* fondo de bono activo / meta */
+    --danger-soft:#2a1414;        /* fondo rojo suave */
+    --divider:#1e1e1e;            /* líneas de tabla */
   }
   /* Tema claro */
   :root[data-theme="light"] {
-    --bg:#f4f4f5; --card:#ffffff; --card2:#f0efec; --yellow:#b8860b; --green:#16a34a;
-    --red:#dc2626; --muted:#78716c; --text:#1c1917; --border:#e4e2df;
-    --brand:#f5e642;
-    --grad1:#fffdf3; --grad2:#ffffff;
-    --accent-soft:#fdf6d6;
+    --bg:#f3f5f4; --card:#ffffff; --card2:#eef1ef; --green:#16a34a;
+    --red:#dc2626; --muted:#6b7280; --text:#111827; --border:#e2e6e3;
+    --yellow:#059669;            /* acento más oscuro para leerse sobre blanco */
+    --brand:#34d399;
+    --brand2:#6ee7b7;
+    --on-brand:#06281b;
+    --grad1:#effdf6; --grad2:#ffffff;
+    --accent-soft:#e6f9f0;
     --danger-soft:#fde4e4;
-    --divider:#ececec;
+    --divider:#eef0ee;
   }
   html { transition:background 0.2s; }
   body, .box, .input-card, .result-card, .resumen-card, .dia-card, .bonus-item, .ref-card, .export-card { transition:background 0.2s,border-color 0.2s,color 0.2s; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; overflow-x:hidden; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 86px; overflow-x:hidden; }
 
-  header { background:var(--brand); padding:18px 16px 26px; position:relative; overflow:hidden; }
-  header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
-  .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
-  header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
-  .header-user { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
-  .user-name { font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#111; }
-  .user-month { font-size:0.7rem; color:#444; font-weight:600; }
-  .btn-logout { background:rgba(0,0,0,0.12); border:none; border-radius:8px; padding:4px 10px; font-size:0.7rem; color:#333; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; }
+  /* Header compacto */
+  header { background:var(--card); padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20; }
+  .brandwrap { display:flex; align-items:center; gap:10px; }
+  .brand-badge { width:36px; height:36px; border-radius:11px; background:var(--brand); color:var(--on-brand); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.35rem; box-shadow:0 4px 14px -5px var(--brand); }
+  header h1 { font-family:'Bebas Neue',cursive; font-size:1.45rem; color:var(--text); line-height:1; letter-spacing:0.5px; }
+  .header-user { display:flex; align-items:center; gap:10px; }
+  .user-month { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:700; text-align:right; }
+  .avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--brand),var(--brand2)); color:var(--on-brand); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',cursive; font-size:1.3rem; cursor:pointer; transition:transform 0.15s; }
+  .avatar:active { transform:scale(0.92); }
 
-  .tabs { display:flex; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
-  .tab { flex:1; padding:12px 6px; text-align:center; font-size:0.75rem; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
-  .tab.active { color:var(--yellow); border-bottom-color:var(--yellow); }
+  /* Barra de navegación inferior */
+  .bnav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--border); padding:8px 6px; padding-bottom:calc(8px + env(safe-area-inset-bottom)); z-index:30; max-width:500px; margin:0 auto; }
+  .bitem { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; color:var(--muted); font-size:0.64rem; font-weight:600; cursor:pointer; position:relative; background:none; border:none; font-family:'DM Sans',sans-serif; transition:color 0.2s; }
+  .bicon { font-size:1.25rem; line-height:1; transition:transform 0.2s; filter:grayscale(1) opacity(0.55); }
+  .bitem.active { color:var(--yellow); }
+  .bitem.active .bicon { filter:none; transform:translateY(-2px) scale(1.08); }
+  .bitem.active::before { content:''; position:absolute; top:-8px; width:30px; height:4px; border-radius:0 0 6px 6px; background:var(--brand); }
 
   .content { padding:18px 16px 0; max-width:500px; margin:0 auto; }
   .tab-panel { display:none; }
@@ -89,7 +100,7 @@
   .btn-add { width:100%; background:none; border:1px dashed var(--border); border-radius:11px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.83rem; padding:10px; cursor:pointer; margin-bottom:14px; transition:border-color 0.2s,color 0.2s; }
   .btn-add:active { border-color:var(--yellow); color:var(--yellow); }
 
-  .btn-save-day { width:100%; background:var(--brand); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
+  .btn-save-day { width:100%; background:var(--brand); border:none; border-radius:12px; color:var(--on-brand); font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; box-shadow:0 8px 20px -10px var(--brand); transition:opacity 0.2s,transform 0.1s; }
   .btn-save-day:active { transform:scale(0.97); }
   .btn-save-day:disabled { opacity:0.5; cursor:not-allowed; }
 
@@ -113,7 +124,7 @@
   .bonus-item.active .check-box { background:var(--brand); border-color:var(--brand); }
   .bonus-item.active .check-box::after { opacity:1; }
   .check-box { width:21px; height:21px; border-radius:6px; border:2px solid var(--border); flex-shrink:0; position:relative; transition:all 0.15s; }
-  .check-box::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:700; color:#111; opacity:0; transition:opacity 0.15s; }
+  .check-box::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:700; color:var(--on-brand); opacity:0; transition:opacity 0.15s; }
   .bonus-name { font-size:0.83rem; font-weight:600; flex:1; }
   .bonus-pct { font-family:'Bebas Neue',cursive; font-size:1.15rem; color:var(--green); flex-shrink:0; }
 
@@ -175,9 +186,21 @@
   .empty-state .icon { font-size:2.2rem; display:block; margin-bottom:8px; }
   .loading { text-align:center; padding:20px; color:var(--muted); font-size:0.85rem; }
 
-  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; white-space:nowrap; }
+  .toast { position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:var(--green); color:#06281b; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; white-space:nowrap; box-shadow:0 10px 30px -8px rgba(0,0,0,0.5); }
+  .toast.show { display:block; animation:toastIn 0.28s cubic-bezier(.2,.9,.3,1.3); }
+  @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(14px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
   @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.015)} 100%{transform:scale(1)} }
   .pop { animation:pulse 0.3s ease; }
+
+  /* Animaciones globales */
+  @keyframes panelIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .tab-panel.active { animation:panelIn 0.3s ease; }
+  @keyframes cardIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .tab-panel.active .input-card, .tab-panel.active .result-card, .tab-panel.active .resumen-card,
+  .tab-panel.active .meta-card, .tab-panel.active .chart-card, .tab-panel.active .welcome-banner,
+  .tab-panel.active .dia-card, .tab-panel.active .export-card { animation:cardIn 0.35s ease both; }
+  .btn-add:active, .btn-export:active, .btn-danger:active, .tema-btn:active, .btn-step:active, .bitem:active { transform:scale(0.96); }
+  .btn-save-day:active { transform:scale(0.97); }
 
   /* Meta del mes */
   .meta-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
@@ -208,22 +231,15 @@
 <body>
 
 <header>
-  <div class="header-top">
-    <h1>CALCULA<br>PEDIDOS</h1>
-    <div class="header-user">
-      <div class="user-name" id="headerName">—</div>
-      <div class="user-month" id="headerMonth">—</div>
-      <button class="btn-logout" onclick="logout()">Salir</button>
-    </div>
+  <div class="brandwrap">
+    <div class="brand-badge">$</div>
+    <h1>CalculaPedidos</h1>
+  </div>
+  <div class="header-user">
+    <div class="user-month" id="headerMonth">—</div>
+    <div class="avatar" id="headerAvatar" onclick="showTab('config')" title="Ir a Ajustes">–</div>
   </div>
 </header>
-
-<div class="tabs">
-  <div class="tab active" onclick="showTab('hoy')">✏️ Hoy</div>
-  <div class="tab" onclick="showTab('mes')">📅 Mes</div>
-  <div class="tab" onclick="showTab('export')">⬇️ Exportar</div>
-  <div class="tab" onclick="showTab('config')">⚙️ Ajustes</div>
-</div>
 
 <div class="content">
 
@@ -387,6 +403,13 @@
     </div>
   </div>
 
+  <div class="section-label">📲 Instalar app</div>
+  <div class="input-card">
+    <div class="config-sub" style="margin-bottom:10px;">Instálala en tu teléfono para abrirla como una app, incluso sin internet.</div>
+    <button class="tema-btn" id="btnInstalar" style="width:100%;" onclick="instalarApp()">📲 Instalar en mi teléfono</button>
+    <div class="config-sub" id="instalarHint" style="display:none;margin-top:10px;line-height:1.6;"></div>
+  </div>
+
   <div class="section-label">🗑️ Datos</div>
   <div class="input-card">
     <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;">Borra todos los días del mes actual. Esta acción no se puede deshacer.</div>
@@ -395,6 +418,14 @@
 </div>
 
 </div>
+
+<nav class="bnav">
+  <button class="bitem active" id="nav-hoy" onclick="showTab('hoy')"><span class="bicon">✏️</span>Hoy</button>
+  <button class="bitem" id="nav-mes" onclick="showTab('mes')"><span class="bicon">📅</span>Mes</button>
+  <button class="bitem" id="nav-export" onclick="showTab('export')"><span class="bicon">⬇️</span>Exportar</button>
+  <button class="bitem" id="nav-config" onclick="showTab('config')"><span class="bicon">⚙️</span>Ajustes</button>
+</nav>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -437,7 +468,7 @@ async function init() {
   PROFILE = profile
 
   const nombre = profile?.nombre || USER.email
-  document.getElementById('headerName').textContent = nombre
+  document.getElementById('headerAvatar').textContent = (nombre || '?').trim().charAt(0).toUpperCase()
   document.getElementById('configEmail').textContent = USER.email
   document.getElementById('configNombre').textContent = nombre
 
@@ -453,8 +484,9 @@ async function init() {
   document.getElementById('welcomeTitle').textContent = `👋 ${saludo}, ${primerNombre}`
   document.getElementById('welcomeSub').textContent = `Hoy es ${diasSem[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()].toLowerCase()}. ¡A registrar tus pedidos!`
 
-  // Marcar el tema activo en la pestaña Config
+  // Marcar el tema activo y el estado del botón de instalar
   marcarTemaActivo()
+  actualizarBotonInstalar()
 
   // Fecha hoy y listener para cambio de fecha
   const fechaInput = document.getElementById('fechaDia')
@@ -502,6 +534,35 @@ function marcarTemaActivo() {
   document.getElementById('temaOscuro')?.classList.toggle('active', !claro)
 }
 
+// ── INSTALAR APP (PWA) ──────────────────────────────────
+let deferredPrompt = null
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; actualizarBotonInstalar() })
+window.addEventListener('appinstalled', () => { deferredPrompt = null; actualizarBotonInstalar(); showToast('✅ ¡App instalada!') })
+function esIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) }
+function appInstalada() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true }
+function actualizarBotonInstalar() {
+  const b = document.getElementById('btnInstalar')
+  if (!b) return
+  if (appInstalada()) { b.textContent = '✅ App instalada'; b.disabled = true; b.style.opacity = '0.6' }
+}
+async function instalarApp() {
+  const hint = document.getElementById('instalarHint')
+  if (appInstalada()) { showToast('✅ La app ya está instalada'); return }
+  if (deferredPrompt) {
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    deferredPrompt = null
+    if (outcome === 'accepted') showToast('✅ ¡Instalada!')
+    actualizarBotonInstalar()
+  } else if (esIOS()) {
+    hint.style.display = 'block'
+    hint.innerHTML = 'En iPhone: toca el botón <b>Compartir</b> (el cuadro con la flecha ↑) y luego <b>“Agregar a inicio”</b>.'
+  } else {
+    hint.style.display = 'block'
+    hint.innerHTML = 'Abre el menú del navegador (⋮, arriba a la derecha) y elige <b>“Instalar app”</b> o <b>“Agregar a pantalla de inicio”</b>. Si aún no aparece, vuelve a entrar en un rato.'
+  }
+}
+
 // ── TABS ────────────────────────────────────────────────
 function cambiarMes(delta) {
   mesOffset += delta
@@ -511,10 +572,10 @@ function cambiarMes(delta) {
 
 function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.bitem').forEach(t => t.classList.remove('active'))
   document.getElementById('tab-' + name).classList.add('active')
-  const idx = ['hoy','mes','export','config'].indexOf(name)
-  document.querySelectorAll('.tab')[idx].classList.add('active')
+  document.getElementById('nav-' + name)?.classList.add('active')
+  window.scrollTo({ top: 0, behavior: 'smooth' })
   if (name === 'mes') cargarDias()
 }
 
@@ -1027,8 +1088,10 @@ function toggleRef() {
 
 // ── UTILS ───────────────────────────────────────────────
 function showToast(msg) {
-  const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'
-  setTimeout(() => t.style.display = 'none', 2200)
+  const t = document.getElementById('toast'); t.textContent = msg
+  t.classList.add('show')
+  clearTimeout(t._to)
+  t._to = setTimeout(() => t.classList.remove('show'), 2200)
 }
 async function borrarMes() {
   if (!confirm('¿Borrar todos los días de este mes?')) return
