@@ -166,7 +166,10 @@
 <div id="tab-hoy" class="tab-panel active">
   <div class="section-label" style="margin-top:4px;">📦 SKUs por pedido</div>
   <div class="pedidos-list" id="pedidosList"></div>
-  <button class="btn-add" onclick="agregarPedido()">＋ Agregar pedido</button>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="agregarPedido()">＋ Agregar pedido</button>
+    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="copiarUltimoDia()">📋 Copiar día anterior</button>
+  </div>
 
   <div class="section-label">📅 Fecha del registro</div>
   <div class="input-card" style="margin-bottom:12px;">
@@ -215,6 +218,7 @@
     <div class="rlabel">Total neto del mes</div>
     <div class="rtotal" id="resNeto">$0</div>
     <div class="res-grid" id="resGrid"></div>
+    <div id="resNota" style="display:none;font-size:0.68rem;color:var(--muted);margin-top:10px;line-height:1.5;">* Proyección estimada: promedio neto por día × días hábiles (L–V) del mes + bonos. Es una referencia, no un valor garantizado.</div>
   </div>
 </div>
 
@@ -329,20 +333,26 @@ async function init() {
 
   // Fecha hoy y listener para cambio de fecha
   const fechaInput = document.getElementById('fechaDia')
-  fechaInput.value = d.toISOString().split('T')[0]
+  fechaInput.value = hoyISO()
+  fechaInput.max = hoyISO() // no permitir fechas futuras
   fechaInput.addEventListener('change', () => cargarDiaEnForm(fechaInput.value))
 
   // Fechas export: primer día del mes hasta hoy
-  const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  const primerDia = ymd(new Date(d.getFullYear(), d.getMonth(), 1))
   document.getElementById('exportDesde').value = primerDia
-  document.getElementById('exportHasta').value = d.toISOString().split('T')[0]
+  document.getElementById('exportHasta').value = hoyISO()
 
-  await cargarConfig()
-  buildBonusGrid()
-  await cargarBonos()
-  buildRefTable()
-  await cargarDiaEnForm(d.toISOString().split('T')[0])
-  await cargarDias()
+  try {
+    await cargarConfig()
+    buildBonusGrid()
+    await cargarBonos()
+    buildRefTable()
+    await cargarDiaEnForm(hoyISO())
+    await cargarDias()
+  } catch (e) {
+    console.error(e)
+    showToast('⚠️ Error de conexión — revisa tu internet')
+  }
 }
 
 // ── AUTH ────────────────────────────────────────────────
@@ -381,6 +391,23 @@ async function guardarConfig() {
 function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null }
 function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL') }
 function getDescPct() { return parseFloat(document.getElementById('descInput')?.value) || 18.5 }
+// Fecha local (YYYY-MM-DD) sin desfase por zona horaria. Evita usar toISOString() (UTC),
+// que de noche podía marcar el día siguiente y guardar registros en la fecha equivocada.
+function ymd(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+function hoyISO() { return ymd(new Date()) }
+// Días hábiles (lunes a viernes) del mes de la fecha de referencia
+function diasHabilesMes(ref) {
+  const y = ref.getFullYear(), m = ref.getMonth()
+  const ultimo = new Date(y, m + 1, 0).getDate()
+  let c = 0
+  for (let d = 1; d <= ultimo; d++) { const wd = new Date(y, m, d).getDay(); if (wd >= 1 && wd <= 5) c++ }
+  return c
+}
 
 // ── CARGAR DÍA EN FORMULARIO ────────────────────────────
 async function cargarDiaEnForm(fechaISO) {
@@ -388,9 +415,9 @@ async function cargarDiaEnForm(fechaISO) {
   document.getElementById('pedidosList').innerHTML = ''
   pedidoCounter = 0
 
-  // Buscar si hay datos para esa fecha
+  // Buscar si hay datos para esa fecha (maybeSingle: no lanza error si no existe)
   const { data } = await sb.from('dias')
-    .select('*').eq('user_id', USER.id).eq('fecha', fechaISO).single()
+    .select('*').eq('user_id', USER.id).eq('fecha', fechaISO).maybeSingle()
 
   if (data && data.pedidos.length > 0) {
     // Cargar pedidos guardados
@@ -400,6 +427,27 @@ async function cargarDiaEnForm(fechaISO) {
     // Día sin datos: un pedido limpio
     agregarPedido()
   }
+}
+
+// ── COPIAR ÚLTIMO DÍA ───────────────────────────────────
+// Duplica los pedidos del último día guardado (anterior a la fecha seleccionada).
+// No guarda nada automáticamente: solo llena el formulario para revisar y guardar.
+async function copiarUltimoDia() {
+  const fechaISO = document.getElementById('fechaDia').value || hoyISO()
+  const { data, error } = await sb.from('dias')
+    .select('*').eq('user_id', USER.id).lt('fecha', fechaISO)
+    .order('fecha', { ascending: false }).limit(1)
+
+  if (error) { showToast('⚠️ Error de conexión'); return }
+  if (!data || data.length === 0 || !data[0].pedidos?.length) {
+    showToast('No hay un día anterior para copiar'); return
+  }
+
+  const dia = data[0]
+  document.getElementById('pedidosList').innerHTML = ''
+  pedidoCounter = 0
+  dia.pedidos.forEach(p => agregarPedido(p.skus))
+  showToast('📋 Copiado de ' + dia.fecha_label + ' — revisa y guarda')
 }
 
 // ── PEDIDOS ─────────────────────────────────────────────
@@ -530,8 +578,8 @@ async function guardarDia() {
 async function cargarDias() {
   const d = new Date()
   const ref = new Date(d.getFullYear(), d.getMonth() + mesOffset, 1)
-  const desde = new Date(ref.getFullYear(), ref.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).toISOString().split('T')[0]
+  const desde = ymd(new Date(ref.getFullYear(), ref.getMonth(), 1))
+  const hasta = ymd(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
 
   // Actualizar label del navegador de mes
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -540,12 +588,19 @@ async function cargarDias() {
   document.getElementById('btnMesSig').style.opacity = mesOffset >= 0 ? '0.3' : '1'
   document.getElementById('btnMesSig').style.pointerEvents = mesOffset >= 0 ? 'none' : 'auto'
 
-  const { data } = await sb.from('dias')
+  const { data, error } = await sb.from('dias')
     .select('*')
     .eq('user_id', USER.id)
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha', { ascending: false })
+
+  if (error) {
+    console.error(error)
+    document.getElementById('diasList').innerHTML =
+      `<div class="empty-state"><span class="icon">📡</span>No se pudo cargar. Revisa tu conexión.<br><button class="btn-add" style="margin-top:12px;" onclick="cargarDias()">🔄 Reintentar</button></div>`
+    return
+  }
 
   diasCache = data || []
   renderDias()
@@ -553,18 +608,18 @@ async function cargarDias() {
 
 function renderDias() {
   const list = document.getElementById('diasList')
-  const hoyISO = new Date().toISOString().split('T')[0]
+  const hoy = hoyISO()
   if (diasCache.length === 0) {
     list.innerHTML = `<div class="empty-state"><span class="icon">📋</span>No hay días registrados este mes.</div>`
   } else {
     list.innerHTML = ''
     diasCache.forEach(d => {
       const card = document.createElement('div')
-      card.className = 'dia-card' + (d.fecha === hoyISO ? ' today' : '')
+      card.className = 'dia-card' + (d.fecha === hoy ? ' today' : '')
       const pedStr = d.pedidos.map(p => p.skus + ' SKUs').join(', ')
       card.innerHTML = `
         <div class="dia-info">
-          <div class="dia-fecha">${d.fecha_label}${d.fecha === hoyISO ? ' 📍' : ''}</div>
+          <div class="dia-fecha">${d.fecha_label}${d.fecha === hoy ? ' 📍' : ''}</div>
           <div class="dia-pedidos">${d.pedidos.length} pedido(s): ${pedStr}</div>
         </div>
         <div class="dia-nums">
@@ -602,14 +657,30 @@ function renderResumen() {
   })
   const bonosNeto = totalBonosMonto * (1 - descPct/100)
   document.getElementById('resNeto').textContent = fmt(totalNeto + bonosNeto)
+
+  // Promedio por día y proyección al cierre del mes (según días hábiles L–V)
+  const diasTrab = diasCache.length
+  let proyeccionHTML = ''
+  if (diasTrab > 0) {
+    const promedioDia = totalNeto / diasTrab
+    const ref = new Date(new Date().getFullYear(), new Date().getMonth() + mesOffset, 1)
+    const proyeccion = promedioDia * diasHabilesMes(ref) + bonosNeto
+    proyeccionHTML = `
+    <div class="res-item"><div class="rl">Promedio / día</div><div class="rv g">${fmt(promedioDia)}</div></div>
+    <div class="res-item"><div class="rl">Proyección mes*</div><div class="rv g">${fmt(proyeccion)}</div></div>`
+  }
+
   document.getElementById('resGrid').innerHTML = `
-    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${diasCache.length}</div></div>
+    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${diasTrab}</div></div>
     <div class="res-item"><div class="rl">Total pedidos</div><div class="rv">${totalPedidos}</div></div>
     <div class="res-item"><div class="rl">Total SKUs</div><div class="rv">${totalSKUs}</div></div>
     <div class="res-item"><div class="rl">Bruto pedidos</div><div class="rv">${fmt(totalBruto)}</div></div>
     <div class="res-item"><div class="rl">Neto pedidos</div><div class="rv g">${fmt(totalNeto)}</div></div>
     <div class="res-item"><div class="rl">Bonos netos</div><div class="rv g">${fmt(bonosNeto)}</div></div>
+    ${proyeccionHTML}
     ${bonosHTML}`
+  const nota = document.getElementById('resNota')
+  if (nota) nota.style.display = diasTrab > 0 ? 'block' : 'none'
 }
 
 // ── BONOS ───────────────────────────────────────────────
@@ -727,8 +798,8 @@ function showToast(msg) {
 async function borrarMes() {
   if (!confirm('¿Borrar todos los días de este mes?')) return
   const d = new Date()
-  const desde = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+  const desde = ymd(new Date(d.getFullYear(), d.getMonth(), 1))
+  const hasta = ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0))
   await sb.from('dias').delete().eq('user_id', USER.id).gte('fecha', desde).lte('fecha', hasta)
   await sb.from('bonos').delete().eq('user_id', USER.id).eq('mes', d.getMonth()+1).eq('anio', d.getFullYear())
   bonosActivos.clear()
