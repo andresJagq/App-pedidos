@@ -7,13 +7,38 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
+  // Aplica el tema guardado antes de pintar para evitar parpadeo
+  (function(){ try { if (localStorage.getItem('tema') === 'claro') document.documentElement.setAttribute('data-theme','light'); } catch(e){} })()
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
+  /* Tema oscuro (por defecto) */
+  :root {
+    --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80;
+    --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e;
+    --brand:#f5e642;              /* amarillo de marca (header/botones) — igual en ambos temas */
+    --grad1:#1f1e0e; --grad2:#1a1a1a;  /* fondo de tarjetas destacadas */
+    --accent-soft:#1f1e0e;         /* fondo de bono activo */
+    --danger-soft:#2a1414;         /* fondo rojo suave */
+    --divider:#1e1e1e;             /* líneas de tabla */
+  }
+  /* Tema claro */
+  :root[data-theme="light"] {
+    --bg:#f4f4f5; --card:#ffffff; --card2:#f0efec; --yellow:#b8860b; --green:#16a34a;
+    --red:#dc2626; --muted:#78716c; --text:#1c1917; --border:#e4e2df;
+    --brand:#f5e642;
+    --grad1:#fffdf3; --grad2:#ffffff;
+    --accent-soft:#fdf6d6;
+    --danger-soft:#fde4e4;
+    --divider:#ececec;
+  }
+  html { transition:background 0.2s; }
+  body, .box, .input-card, .result-card, .resumen-card, .dia-card, .bonus-item, .ref-card, .export-card { transition:background 0.2s,border-color 0.2s,color 0.2s; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; overflow-x:hidden; }
 
-  header { background:var(--yellow); padding:18px 16px 26px; position:relative; overflow:hidden; }
+  header { background:var(--brand); padding:18px 16px 26px; position:relative; overflow:hidden; }
   header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
   .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
   header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
@@ -54,16 +79,16 @@
   .pedido-tramo { font-size:0.7rem; color:var(--muted); width:60px; text-align:right; flex-shrink:0; line-height:1.4; }
   .pedido-tramo span { color:var(--yellow); font-weight:700; display:block; }
   .btn-del { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--red); font-size:0.95rem; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-  .btn-del:active { background:#2a1414; }
+  .btn-del:active { background:var(--danger-soft); }
 
   .btn-add { width:100%; background:none; border:1px dashed var(--border); border-radius:11px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.83rem; padding:10px; cursor:pointer; margin-bottom:14px; transition:border-color 0.2s,color 0.2s; }
   .btn-add:active { border-color:var(--yellow); color:var(--yellow); }
 
-  .btn-save-day { width:100%; background:var(--yellow); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
+  .btn-save-day { width:100%; background:var(--brand); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
   .btn-save-day:active { transform:scale(0.97); }
   .btn-save-day:disabled { opacity:0.5; cursor:not-allowed; }
 
-  .result-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
+  .result-card { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
   .result-card::before { content:'$'; position:absolute; right:6px; top:-8px; font-family:'Bebas Neue',cursive; font-size:7rem; color:var(--yellow); opacity:0.05; line-height:1; }
   .rlabel { font-size:0.68rem; font-weight:600; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
   .rtotal { font-family:'Bebas Neue',cursive; font-size:2.6rem; color:var(--yellow); line-height:1; margin-bottom:10px; }
@@ -79,8 +104,8 @@
 
   .bonus-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
   .bonus-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; display:flex; align-items:center; cursor:pointer; gap:11px; transition:border-color 0.2s,background 0.2s; user-select:none; }
-  .bonus-item.active { border-color:var(--yellow); background:#1f1e0e; }
-  .bonus-item.active .check-box { background:var(--yellow); border-color:var(--yellow); }
+  .bonus-item.active { border-color:var(--yellow); background:var(--accent-soft); }
+  .bonus-item.active .check-box { background:var(--brand); border-color:var(--brand); }
   .bonus-item.active .check-box::after { opacity:1; }
   .check-box { width:21px; height:21px; border-radius:6px; border:2px solid var(--border); flex-shrink:0; position:relative; transition:all 0.15s; }
   .check-box::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:700; color:#111; opacity:0; transition:opacity 0.15s; }
@@ -97,7 +122,7 @@
   .dia-neto { font-family:'Bebas Neue',cursive; font-size:1.2rem; color:var(--green); }
   .btn-dia-del { background:none; border:none; color:var(--red); font-size:0.9rem; cursor:pointer; padding:4px; flex-shrink:0; }
 
-  .resumen-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; }
+  .resumen-card { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; }
   .res-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .res-item { background:var(--card2); border-radius:10px; padding:10px 12px; }
   .res-item .rl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
@@ -118,7 +143,7 @@
   .ref-card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--border); margin-bottom:14px; }
   .ref-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:7px; }
   .ref-table th { color:var(--muted); font-weight:600; text-align:left; padding:4px 0; font-size:0.7rem; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border); }
-  .ref-table td { padding:7px 0; color:var(--text); border-bottom:1px solid #1e1e1e; }
+  .ref-table td { padding:7px 0; color:var(--text); border-bottom:1px solid var(--divider); }
   .ref-table tr:last-child td { border-bottom:none; }
   .ref-table .hl td { color:var(--yellow); font-weight:700; }
   .ref-table td:nth-child(2), .ref-table th:nth-child(2) { text-align:center; }
@@ -129,7 +154,17 @@
   .config-label { font-size:0.85rem; font-weight:600; }
   .config-sub { font-size:0.73rem; color:var(--muted); margin-top:2px; }
   .btn-danger { background:none; border:1px solid var(--red); color:var(--red); border-radius:10px; padding:10px 16px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; width:100%; margin-top:14px; }
-  .btn-danger:active { background:#2a1414; }
+  .btn-danger:active { background:var(--danger-soft); }
+
+  /* Banner de bienvenida */
+  .welcome-banner { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  .welcome-banner .wt { font-family:'Bebas Neue',cursive; font-size:1.25rem; color:var(--yellow); letter-spacing:1px; line-height:1.1; }
+  .welcome-banner .ws { font-size:0.78rem; color:var(--muted); margin-top:3px; }
+
+  /* Botones de tema (Apariencia) */
+  .tema-row { display:flex; gap:8px; }
+  .tema-btn { flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+  .tema-btn.active { border-color:var(--yellow); color:var(--yellow); background:var(--accent-soft); }
 
   .empty-state { text-align:center; padding:28px 0; color:var(--muted); font-size:0.85rem; line-height:1.8; }
   .empty-state .icon { font-size:2.2rem; display:block; margin-bottom:8px; }
@@ -164,7 +199,11 @@
 
 <!-- HOY -->
 <div id="tab-hoy" class="tab-panel active">
-  <div class="section-label" style="margin-top:4px;">📦 SKUs por pedido</div>
+  <div class="welcome-banner" id="welcomeBanner" style="margin-top:4px;">
+    <div class="wt" id="welcomeTitle">👋 ¡Hola!</div>
+    <div class="ws" id="welcomeSub">—</div>
+  </div>
+  <div class="section-label">📦 SKUs por pedido</div>
   <div class="pedidos-list" id="pedidosList"></div>
   <div style="display:flex;gap:8px;">
     <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="agregarPedido()">＋ Agregar pedido</button>
@@ -276,6 +315,15 @@
     </div>
   </div>
 
+  <div class="section-label">🎨 Apariencia</div>
+  <div class="input-card">
+    <div class="config-sub" style="margin-bottom:10px;">Elige el tema. Se guarda en este dispositivo.</div>
+    <div class="tema-row">
+      <button class="tema-btn" id="temaClaro" onclick="aplicarTema('claro')">☀️ Claro</button>
+      <button class="tema-btn" id="temaOscuro" onclick="aplicarTema('oscuro')">🌙 Oscuro</button>
+    </div>
+  </div>
+
   <div class="section-label">🗑️ Datos</div>
   <div class="input-card">
     <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;">Borra todos los días del mes actual. Esta acción no se puede deshacer.</div>
@@ -331,6 +379,17 @@ async function init() {
   const d = new Date()
   document.getElementById('headerMonth').textContent = meses[d.getMonth()] + ' ' + d.getFullYear()
 
+  // Mensaje de bienvenida personalizado (saludo según la hora)
+  const hora = d.getHours()
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
+  const primerNombre = (nombre || '').trim().split(' ')[0] || nombre
+  const diasSem = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+  document.getElementById('welcomeTitle').textContent = `👋 ${saludo}, ${primerNombre}`
+  document.getElementById('welcomeSub').textContent = `Hoy es ${diasSem[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()].toLowerCase()}. ¡A registrar tus pedidos!`
+
+  // Marcar el tema activo en la pestaña Config
+  marcarTemaActivo()
+
   // Fecha hoy y listener para cambio de fecha
   const fechaInput = document.getElementById('fechaDia')
   fechaInput.value = hoyISO()
@@ -359,6 +418,19 @@ async function init() {
 async function logout() {
   await sb.auth.signOut()
   window.location.href = 'index.html'
+}
+
+// ── TEMA (claro / oscuro) ───────────────────────────────
+function aplicarTema(t) {
+  if (t === 'claro') document.documentElement.setAttribute('data-theme', 'light')
+  else document.documentElement.removeAttribute('data-theme')
+  try { localStorage.setItem('tema', t) } catch (e) {}
+  marcarTemaActivo()
+}
+function marcarTemaActivo() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  document.getElementById('temaClaro')?.classList.toggle('active', claro)
+  document.getElementById('temaOscuro')?.classList.toggle('active', !claro)
 }
 
 // ── TABS ────────────────────────────────────────────────
