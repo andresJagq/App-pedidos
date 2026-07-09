@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>CalculaPedidos</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5e642">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pedidos">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -173,6 +178,31 @@
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; white-space:nowrap; }
   @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.015)} 100%{transform:scale(1)} }
   .pop { animation:pulse 0.3s ease; }
+
+  /* Meta del mes */
+  .meta-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .meta-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .meta-actual { font-family:'Bebas Neue',cursive; font-size:1.7rem; color:var(--green); line-height:1; }
+  .meta-obj { font-size:0.8rem; color:var(--muted); font-weight:600; }
+  .meta-bar { background:var(--card2); border-radius:10px; height:16px; overflow:hidden; }
+  .meta-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--green),var(--brand)); border-radius:10px; transition:width 0.5s ease; }
+  .meta-pct { text-align:center; font-size:0.78rem; color:var(--muted); margin-top:7px; font-weight:600; }
+  .meta-pct.lograda { color:var(--green); }
+
+  /* Comparación vs mes anterior y mejor día */
+  .compara { font-size:0.82rem; font-weight:600; margin-bottom:10px; }
+  .compara.up { color:var(--green); } .compara.down { color:var(--red); } .compara.eq { color:var(--muted); }
+  .mejor-dia { background:var(--card2); border-radius:10px; padding:9px 12px; font-size:0.8rem; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+  .mejor-dia .md-l { color:var(--muted); } .mejor-dia .md-v { color:var(--yellow); font-weight:700; }
+
+  /* Gráfico de barras por día */
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 12px 10px; margin-bottom:14px; }
+  .chart-bars { display:flex; align-items:flex-end; gap:4px; height:130px; overflow-x:auto; padding-bottom:4px; }
+  .chart-col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; flex:1 0 20px; min-width:20px; height:100%; }
+  .chart-bar { width:100%; max-width:26px; background:var(--green); border-radius:5px 5px 0 0; min-height:3px; transition:height 0.4s ease; }
+  .chart-bar.hoy { background:var(--brand); }
+  .chart-day { font-size:0.6rem; color:var(--muted); }
+  .chart-empty { text-align:center; color:var(--muted); font-size:0.82rem; padding:24px 0; }
 </style>
 </head>
 <body>
@@ -189,10 +219,10 @@
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('hoy')">📦 Hoy</div>
+  <div class="tab active" onclick="showTab('hoy')">✏️ Hoy</div>
   <div class="tab" onclick="showTab('mes')">📅 Mes</div>
-  <div class="tab" onclick="showTab('export')">📊 Export</div>
-  <div class="tab" onclick="showTab('config')">⚙️</div>
+  <div class="tab" onclick="showTab('export')">⬇️ Exportar</div>
+  <div class="tab" onclick="showTab('config')">⚙️ Ajustes</div>
 </div>
 
 <div class="content">
@@ -206,7 +236,7 @@
   <div class="section-label">📦 SKUs por pedido</div>
   <div class="pedidos-list" id="pedidosList"></div>
   <div style="display:flex;gap:8px;">
-    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="agregarPedido()">＋ Agregar pedido</button>
+    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="agregarPedido();marcarSucio()">＋ Agregar pedido</button>
     <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="copiarUltimoDia()">📋 Copiar día anterior</button>
   </div>
 
@@ -246,19 +276,37 @@
     <button onclick="cambiarMes(1)" id="btnMesSig" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">›</button>
   </div>
 
-  <div class="section-label">🎯 Bonificaciones del mes</div>
-  <div class="bonus-grid" id="bonusGrid"></div>
-
-  <div class="section-label">📅 Días registrados</div>
-  <div class="dias-list" id="diasList"><div class="loading">Cargando...</div></div>
+  <div class="section-label">🎯 Meta del mes</div>
+  <div class="meta-card">
+    <div id="metaSinDefinir" class="config-sub" style="line-height:1.6;">Aún no defines una meta. Ponla en <b>⚙️ Ajustes</b> para ver tu progreso aquí.</div>
+    <div id="metaConDefinida" style="display:none;">
+      <div class="meta-top">
+        <span class="meta-actual" id="metaActualLabel">$0</span>
+        <span class="meta-obj" id="metaObjetivoLabel">de $0</span>
+      </div>
+      <div class="meta-bar"><div class="meta-fill" id="metaFill"></div></div>
+      <div class="meta-pct" id="metaPct">0% de tu meta</div>
+    </div>
+  </div>
 
   <div class="section-label">📊 Resumen del mes</div>
   <div class="resumen-card">
     <div class="rlabel">Total neto del mes</div>
     <div class="rtotal" id="resNeto">$0</div>
+    <div id="resCompara" class="compara" style="display:none;"></div>
+    <div id="resMejorDia" class="mejor-dia" style="display:none;"></div>
     <div class="res-grid" id="resGrid"></div>
     <div id="resNota" style="display:none;font-size:0.68rem;color:var(--muted);margin-top:10px;line-height:1.5;">* Proyección estimada: promedio neto por día × días hábiles (L–V) del mes + bonos. Es una referencia, no un valor garantizado.</div>
   </div>
+
+  <div class="section-label">📈 Ganancias por día</div>
+  <div class="chart-card" id="chartCard"><div class="loading">—</div></div>
+
+  <div class="section-label">🎁 Bonificaciones del mes</div>
+  <div class="bonus-grid" id="bonusGrid"></div>
+
+  <div class="section-label">📅 Días registrados</div>
+  <div class="dias-list" id="diasList"><div class="loading">Cargando...</div></div>
 </div>
 
 <!-- EXPORT -->
@@ -300,6 +348,21 @@
       <div>
         <div class="config-label">Base por tramo</div>
         <div class="config-sub">1–50 SKUs: $1.000 &nbsp;·&nbsp; 51+: $1.200</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">🎯 Meta del mes</div>
+  <div class="input-card">
+    <div class="config-sub" style="margin-bottom:10px;">¿Cuánto quieres ganar este mes? Verás tu progreso en la pestaña <b>📅 Mes</b>. (Se guarda en este dispositivo)</div>
+    <div class="config-row" style="border:none;">
+      <div>
+        <div class="config-label">Meta ($ neto)</div>
+        <div class="config-sub">Deja 0 para no usar meta</div>
+      </div>
+      <div class="desc-input-wrap" style="min-width:120px;">
+        <span>$</span>
+        <input type="number" id="metaInput" value="0" min="0" step="1000" style="width:90px;text-align:right;" oninput="guardarMeta()">
       </div>
     </div>
   </div>
@@ -359,6 +422,9 @@ let bonosActivos = new Set()
 let pedidoCounter = 0
 let diasCache = []
 let mesOffset = 0
+let META = 0            // meta de ganancias del mes (por dispositivo)
+let formDirty = false   // ¿hay cambios sin guardar en el formulario de Hoy?
+let mesTotalNeto = 0    // neto de pedidos del mes visible (para comparar con el anterior)
 
 // ── INIT ────────────────────────────────────────────────
 async function init() {
@@ -401,6 +467,8 @@ async function init() {
   document.getElementById('exportDesde').value = primerDia
   document.getElementById('exportHasta').value = hoyISO()
 
+  cargarMeta()
+
   try {
     await cargarConfig()
     buildBonusGrid()
@@ -416,6 +484,7 @@ async function init() {
 
 // ── AUTH ────────────────────────────────────────────────
 async function logout() {
+  formDirty = false // salida intencional: no mostrar aviso
   await sb.auth.signOut()
   window.location.href = 'index.html'
 }
@@ -459,6 +528,36 @@ async function guardarConfig() {
   await sb.from('config').upsert({ user_id: USER.id, descuento }, { onConflict: 'user_id' })
 }
 
+// ── META DEL MES (guardada en el dispositivo, sin tocar la base de datos) ──
+function metaKey() { return 'meta_' + (USER ? USER.id : 'anon') }
+function cargarMeta() {
+  let v = 0
+  try { v = parseFloat(localStorage.getItem(metaKey())) || 0 } catch (e) {}
+  META = v
+  const inp = document.getElementById('metaInput')
+  if (inp) inp.value = v
+}
+function guardarMeta() {
+  META = parseFloat(document.getElementById('metaInput').value) || 0
+  try { localStorage.setItem(metaKey(), META) } catch (e) {}
+  renderMeta()
+}
+// Muestra la barra de progreso comparando lo ganado del mes con la meta
+function renderMeta(totalNetoConBonos) {
+  const sinDef = document.getElementById('metaSinDefinir')
+  const conDef = document.getElementById('metaConDefinida')
+  if (!META || META <= 0) { sinDef.style.display = 'block'; conDef.style.display = 'none'; return }
+  sinDef.style.display = 'none'; conDef.style.display = 'block'
+  const actual = totalNetoConBonos || 0
+  const pct = Math.min(100, Math.round((actual / META) * 100))
+  document.getElementById('metaActualLabel').textContent = fmt(actual)
+  document.getElementById('metaObjetivoLabel').textContent = 'de ' + fmt(META)
+  document.getElementById('metaFill').style.width = pct + '%'
+  const pctEl = document.getElementById('metaPct')
+  if (actual >= META) { pctEl.textContent = '🎉 ¡Meta lograda! ' + pct + '%'; pctEl.classList.add('lograda') }
+  else { pctEl.textContent = pct + '% de tu meta'; pctEl.classList.remove('lograda') }
+}
+
 // ── HELPERS ─────────────────────────────────────────────
 function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null }
 function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL') }
@@ -499,6 +598,7 @@ async function cargarDiaEnForm(fechaISO) {
     // Día sin datos: un pedido limpio
     agregarPedido()
   }
+  formDirty = false // recién cargado: sin cambios pendientes
 }
 
 // ── COPIAR ÚLTIMO DÍA ───────────────────────────────────
@@ -519,6 +619,7 @@ async function copiarUltimoDia() {
   document.getElementById('pedidosList').innerHTML = ''
   pedidoCounter = 0
   dia.pedidos.forEach(p => agregarPedido(p.skus))
+  marcarSucio()
   showToast('📋 Copiado de ' + dia.fecha_label + ' — revisa y guarda')
 }
 
@@ -533,7 +634,7 @@ function agregarPedido(skusInicial = 1) {
     <div class="pedido-num">#${list.children.length + 1}</div>
     <div class="pedido-skus">
       <button class="btn-step" onclick="stepPedido(${id},-1)">−</button>
-      <input class="num-input" id="sku-${id}" type="number" value="${skusInicial}" min="1" max="999" oninput="calcular()">
+      <input class="num-input" id="sku-${id}" type="number" value="${skusInicial}" min="1" max="999" oninput="calcular();marcarSucio()">
       <button class="btn-step" onclick="stepPedido(${id},1)">+</button>
     </div>
     <div class="pedido-tramo" id="tramo-${id}"><span>$120/SKU</span></div>
@@ -544,12 +645,14 @@ function agregarPedido(skusInicial = 1) {
 function stepPedido(id, d) {
   const inp = document.getElementById('sku-' + id)
   let v = (parseInt(inp.value)||0) + d; if (v < 1) v = 1
-  inp.value = v; calcular()
+  inp.value = v; calcular(); marcarSucio()
 }
 function eliminarPedido(id) {
   document.getElementById('pedido-' + id)?.remove()
-  renumerarPedidos(); calcular()
+  renumerarPedidos(); calcular(); marcarSucio()
 }
+// Marca que hay cambios sin guardar en el formulario de Hoy
+function marcarSucio() { formDirty = true }
 function renumerarPedidos() {
   document.querySelectorAll('.pedido-row').forEach((r,i) => r.querySelector('.pedido-num').textContent = '#'+(i+1))
 }
@@ -640,6 +743,7 @@ async function guardarDia() {
 
   if (error) { showToast('❌ Error al guardar'); console.error(error) }
   else {
+    formDirty = false // ya está guardado
     showToast('✅ Día guardado')
     await cargarDias()
   }
@@ -676,6 +780,47 @@ async function cargarDias() {
 
   diasCache = data || []
   renderDias()
+  compararMesAnterior()
+}
+
+// ── GRÁFICO DE GANANCIAS POR DÍA ────────────────────────
+function renderChart() {
+  const card = document.getElementById('chartCard')
+  if (!diasCache.length) {
+    card.innerHTML = '<div class="chart-empty">Aún no hay días para graficar.</div>'
+    return
+  }
+  const dias = [...diasCache].sort((a, b) => a.fecha.localeCompare(b.fecha))
+  const max = Math.max(...dias.map(d => d.neto || 0), 1)
+  const hoy = hoyISO()
+  const bars = dias.map(d => {
+    const h = Math.max(3, Math.round(((d.neto || 0) / max) * 110))
+    const diaNum = d.fecha.split('-')[2]
+    const cls = d.fecha === hoy ? 'chart-bar hoy' : 'chart-bar'
+    return `<div class="chart-col"><div class="${cls}" style="height:${h}px" title="${d.fecha_label}: ${fmt(d.neto)}"></div><div class="chart-day">${diaNum}</div></div>`
+  }).join('')
+  card.innerHTML = `<div class="chart-bars">${bars}</div>`
+}
+
+// ── COMPARACIÓN CON EL MES ANTERIOR ─────────────────────
+async function compararMesAnterior() {
+  const el = document.getElementById('resCompara')
+  if (!el) return
+  const d = new Date()
+  const prev = new Date(d.getFullYear(), d.getMonth() + mesOffset - 1, 1)
+  const desde = ymd(new Date(prev.getFullYear(), prev.getMonth(), 1))
+  const hasta = ymd(new Date(prev.getFullYear(), prev.getMonth() + 1, 0))
+  const { data, error } = await sb.from('dias')
+    .select('neto').eq('user_id', USER.id).gte('fecha', desde).lte('fecha', hasta)
+  if (error) { el.style.display = 'none'; return }
+  const prevTotal = (data || []).reduce((s, r) => s + (r.neto || 0), 0)
+  if (prevTotal <= 0) { el.style.display = 'none'; return }
+  const pct = Math.round(((mesTotalNeto - prevTotal) / prevTotal) * 100)
+  el.style.display = 'block'
+  el.classList.remove('up', 'down', 'eq')
+  if (pct > 0)      { el.classList.add('up');   el.textContent = `▲ ${pct}% más que el mes anterior (${fmt(prevTotal)})` }
+  else if (pct < 0) { el.classList.add('down'); el.textContent = `▼ ${Math.abs(pct)}% menos que el mes anterior (${fmt(prevTotal)})` }
+  else              { el.classList.add('eq');   el.textContent = `≈ Igual que el mes anterior (${fmt(prevTotal)})` }
 }
 
 function renderDias() {
@@ -728,7 +873,25 @@ function renderResumen() {
     bonosHTML += `<div class="res-item"><div class="rl">${b.nombre} +${b.pct}%</div><div class="rv g">${fmt(monto*(1-descPct/100))}</div></div>`
   })
   const bonosNeto = totalBonosMonto * (1 - descPct/100)
-  document.getElementById('resNeto').textContent = fmt(totalNeto + bonosNeto)
+  const totalMes = totalNeto + bonosNeto
+  mesTotalNeto = totalNeto
+  document.getElementById('resNeto').textContent = fmt(totalMes)
+
+  // Barra de progreso de la meta del mes
+  renderMeta(totalMes)
+
+  // Tu mejor día del mes (el de mayor neto)
+  const mejorDiaEl = document.getElementById('resMejorDia')
+  if (diasCache.length > 0) {
+    const mejor = diasCache.reduce((a, b) => (b.neto > a.neto ? b : a))
+    mejorDiaEl.style.display = 'flex'
+    mejorDiaEl.innerHTML = `<span class="md-l">🏆 Tu mejor día: ${mejor.fecha_label}</span><span class="md-v">${fmt(mejor.neto)}</span>`
+  } else {
+    mejorDiaEl.style.display = 'none'
+  }
+
+  // Gráfico de ganancias por día
+  renderChart()
 
   // Promedio por día y proyección al cierre del mes (según días hábiles L–V)
   const diasTrab = diasCache.length
@@ -878,6 +1041,16 @@ async function borrarMes() {
   document.querySelectorAll('.bonus-item').forEach(el => el.classList.remove('active'))
   await cargarDias()
   showToast('🗑️ Mes borrado')
+}
+
+// Aviso si el usuario intenta salir con cambios sin guardar en el formulario de Hoy
+window.addEventListener('beforeunload', e => {
+  if (formDirty) { e.preventDefault(); e.returnValue = '' }
+})
+
+// Registrar el service worker (permite instalar la app y usarla sin conexión)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}))
 }
 
 init()
