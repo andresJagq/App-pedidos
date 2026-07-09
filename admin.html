@@ -7,12 +7,22 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
+  (function(){ try { if (localStorage.getItem('tema') === 'claro') document.documentElement.setAttribute('data-theme','light'); } catch(e){} })()
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
+  :root {
+    --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80;
+    --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; --brand:#f5e642;
+  }
+  :root[data-theme="light"] {
+    --bg:#f4f4f5; --card:#ffffff; --card2:#f0efec; --yellow:#b8860b; --green:#16a34a;
+    --red:#dc2626; --muted:#78716c; --text:#1c1917; --border:#e4e2df; --brand:#f5e642;
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; }
-  header { background:var(--yellow); padding:18px 16px 26px; position:relative; }
+  header { background:var(--brand); padding:18px 16px 26px; position:relative; }
   header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
   .header-top { display:flex; justify-content:space-between; align-items:center; }
   header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
@@ -50,7 +60,10 @@
 <header>
   <div class="header-top">
     <h1>ADMIN<br>PANEL</h1>
-    <button class="btn-logout" onclick="logout()">Salir</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-logout" id="temaToggle" onclick="toggleTema()">🌙 Tema</button>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
   </div>
 </header>
 
@@ -82,6 +95,29 @@ let USER = null
 let allUsers = []
 let mesOffsetAdmin = 0
 
+// ── TEMA (claro / oscuro) ──
+function toggleTema() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  if (claro) document.documentElement.removeAttribute('data-theme')
+  else document.documentElement.setAttribute('data-theme', 'light')
+  try { localStorage.setItem('tema', claro ? 'oscuro' : 'claro') } catch (e) {}
+  actualizarTemaLabel()
+}
+function actualizarTemaLabel() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  const b = document.getElementById('temaToggle')
+  if (b) b.textContent = claro ? '🌙 Tema' : '☀️ Tema'
+}
+actualizarTemaLabel()
+
+// Fecha local (YYYY-MM-DD) sin desfase por zona horaria (evita toISOString/UTC)
+function ymd(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function actualizarMesAdminLabel() {
   const d = new Date()
   const ref = new Date(d.getFullYear(), d.getMonth() + mesOffsetAdmin, 1)
@@ -90,8 +126,8 @@ function actualizarMesAdminLabel() {
   document.getElementById('btnMesAdminSig').style.opacity = mesOffsetAdmin >= 0 ? '0.3' : '1'
   document.getElementById('btnMesAdminSig').style.pointerEvents = mesOffsetAdmin >= 0 ? 'none' : 'auto'
   // Actualizar fechas
-  const desde = new Date(ref.getFullYear(), ref.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).toISOString().split('T')[0]
+  const desde = ymd(new Date(ref.getFullYear(), ref.getMonth(), 1))
+  const hasta = ymd(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
   document.getElementById('exportDesde').value = desde
   document.getElementById('exportHasta').value = hasta
 }
@@ -122,8 +158,8 @@ async function logout() {
 }
 
 async function cargarUsuarios() {
-  const desde = document.getElementById('exportDesde').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
-  const hasta = document.getElementById('exportHasta').value || new Date().toISOString().split('T')[0]
+  const desde = document.getElementById('exportDesde').value || ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const hasta = document.getElementById('exportHasta').value || ymd(new Date())
 
   const { data: profiles } = await sb.from('profiles').select('*').order('nombre')
   if (!profiles) return

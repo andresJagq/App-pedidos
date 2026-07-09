@@ -7,13 +7,38 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
+  // Aplica el tema guardado antes de pintar para evitar parpadeo
+  (function(){ try { if (localStorage.getItem('tema') === 'claro') document.documentElement.setAttribute('data-theme','light'); } catch(e){} })()
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
+  /* Tema oscuro (por defecto) */
+  :root {
+    --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80;
+    --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e;
+    --brand:#f5e642;              /* amarillo de marca (header/botones) — igual en ambos temas */
+    --grad1:#1f1e0e; --grad2:#1a1a1a;  /* fondo de tarjetas destacadas */
+    --accent-soft:#1f1e0e;         /* fondo de bono activo */
+    --danger-soft:#2a1414;         /* fondo rojo suave */
+    --divider:#1e1e1e;             /* líneas de tabla */
+  }
+  /* Tema claro */
+  :root[data-theme="light"] {
+    --bg:#f4f4f5; --card:#ffffff; --card2:#f0efec; --yellow:#b8860b; --green:#16a34a;
+    --red:#dc2626; --muted:#78716c; --text:#1c1917; --border:#e4e2df;
+    --brand:#f5e642;
+    --grad1:#fffdf3; --grad2:#ffffff;
+    --accent-soft:#fdf6d6;
+    --danger-soft:#fde4e4;
+    --divider:#ececec;
+  }
+  html { transition:background 0.2s; }
+  body, .box, .input-card, .result-card, .resumen-card, .dia-card, .bonus-item, .ref-card, .export-card { transition:background 0.2s,border-color 0.2s,color 0.2s; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; overflow-x:hidden; }
 
-  header { background:var(--yellow); padding:18px 16px 26px; position:relative; overflow:hidden; }
+  header { background:var(--brand); padding:18px 16px 26px; position:relative; overflow:hidden; }
   header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
   .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
   header h1 { font-family:'Bebas Neue',cursive; font-size:1.9rem; color:#111; line-height:1; }
@@ -54,16 +79,16 @@
   .pedido-tramo { font-size:0.7rem; color:var(--muted); width:60px; text-align:right; flex-shrink:0; line-height:1.4; }
   .pedido-tramo span { color:var(--yellow); font-weight:700; display:block; }
   .btn-del { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--red); font-size:0.95rem; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-  .btn-del:active { background:#2a1414; }
+  .btn-del:active { background:var(--danger-soft); }
 
   .btn-add { width:100%; background:none; border:1px dashed var(--border); border-radius:11px; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.83rem; padding:10px; cursor:pointer; margin-bottom:14px; transition:border-color 0.2s,color 0.2s; }
   .btn-add:active { border-color:var(--yellow); color:var(--yellow); }
 
-  .btn-save-day { width:100%; background:var(--yellow); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
+  .btn-save-day { width:100%; background:var(--brand); border:none; border-radius:12px; color:#111; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; margin-bottom:14px; transition:opacity 0.2s,transform 0.1s; }
   .btn-save-day:active { transform:scale(0.97); }
   .btn-save-day:disabled { opacity:0.5; cursor:not-allowed; }
 
-  .result-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
+  .result-card { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
   .result-card::before { content:'$'; position:absolute; right:6px; top:-8px; font-family:'Bebas Neue',cursive; font-size:7rem; color:var(--yellow); opacity:0.05; line-height:1; }
   .rlabel { font-size:0.68rem; font-weight:600; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
   .rtotal { font-family:'Bebas Neue',cursive; font-size:2.6rem; color:var(--yellow); line-height:1; margin-bottom:10px; }
@@ -79,8 +104,8 @@
 
   .bonus-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
   .bonus-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; display:flex; align-items:center; cursor:pointer; gap:11px; transition:border-color 0.2s,background 0.2s; user-select:none; }
-  .bonus-item.active { border-color:var(--yellow); background:#1f1e0e; }
-  .bonus-item.active .check-box { background:var(--yellow); border-color:var(--yellow); }
+  .bonus-item.active { border-color:var(--yellow); background:var(--accent-soft); }
+  .bonus-item.active .check-box { background:var(--brand); border-color:var(--brand); }
   .bonus-item.active .check-box::after { opacity:1; }
   .check-box { width:21px; height:21px; border-radius:6px; border:2px solid var(--border); flex-shrink:0; position:relative; transition:all 0.15s; }
   .check-box::after { content:'✓'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:700; color:#111; opacity:0; transition:opacity 0.15s; }
@@ -97,7 +122,7 @@
   .dia-neto { font-family:'Bebas Neue',cursive; font-size:1.2rem; color:var(--green); }
   .btn-dia-del { background:none; border:none; color:var(--red); font-size:0.9rem; cursor:pointer; padding:4px; flex-shrink:0; }
 
-  .resumen-card { background:linear-gradient(135deg,#1f1e0e,#1a1a1a); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; }
+  .resumen-card { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:2px solid var(--yellow); border-radius:18px; padding:18px; margin-bottom:14px; }
   .res-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .res-item { background:var(--card2); border-radius:10px; padding:10px 12px; }
   .res-item .rl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
@@ -118,7 +143,7 @@
   .ref-card { background:var(--card); border-radius:14px; padding:14px; border:1px solid var(--border); margin-bottom:14px; }
   .ref-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:7px; }
   .ref-table th { color:var(--muted); font-weight:600; text-align:left; padding:4px 0; font-size:0.7rem; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border); }
-  .ref-table td { padding:7px 0; color:var(--text); border-bottom:1px solid #1e1e1e; }
+  .ref-table td { padding:7px 0; color:var(--text); border-bottom:1px solid var(--divider); }
   .ref-table tr:last-child td { border-bottom:none; }
   .ref-table .hl td { color:var(--yellow); font-weight:700; }
   .ref-table td:nth-child(2), .ref-table th:nth-child(2) { text-align:center; }
@@ -129,7 +154,17 @@
   .config-label { font-size:0.85rem; font-weight:600; }
   .config-sub { font-size:0.73rem; color:var(--muted); margin-top:2px; }
   .btn-danger { background:none; border:1px solid var(--red); color:var(--red); border-radius:10px; padding:10px 16px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; width:100%; margin-top:14px; }
-  .btn-danger:active { background:#2a1414; }
+  .btn-danger:active { background:var(--danger-soft); }
+
+  /* Banner de bienvenida */
+  .welcome-banner { background:linear-gradient(135deg,var(--grad1),var(--grad2)); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  .welcome-banner .wt { font-family:'Bebas Neue',cursive; font-size:1.25rem; color:var(--yellow); letter-spacing:1px; line-height:1.1; }
+  .welcome-banner .ws { font-size:0.78rem; color:var(--muted); margin-top:3px; }
+
+  /* Botones de tema (Apariencia) */
+  .tema-row { display:flex; gap:8px; }
+  .tema-btn { flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:11px; padding:11px; font-family:'DM Sans',sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+  .tema-btn.active { border-color:var(--yellow); color:var(--yellow); background:var(--accent-soft); }
 
   .empty-state { text-align:center; padding:28px 0; color:var(--muted); font-size:0.85rem; line-height:1.8; }
   .empty-state .icon { font-size:2.2rem; display:block; margin-bottom:8px; }
@@ -164,9 +199,16 @@
 
 <!-- HOY -->
 <div id="tab-hoy" class="tab-panel active">
-  <div class="section-label" style="margin-top:4px;">📦 SKUs por pedido</div>
+  <div class="welcome-banner" id="welcomeBanner" style="margin-top:4px;">
+    <div class="wt" id="welcomeTitle">👋 ¡Hola!</div>
+    <div class="ws" id="welcomeSub">—</div>
+  </div>
+  <div class="section-label">📦 SKUs por pedido</div>
   <div class="pedidos-list" id="pedidosList"></div>
-  <button class="btn-add" onclick="agregarPedido()">＋ Agregar pedido</button>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="agregarPedido()">＋ Agregar pedido</button>
+    <button class="btn-add" style="flex:1;margin-bottom:14px;" onclick="copiarUltimoDia()">📋 Copiar día anterior</button>
+  </div>
 
   <div class="section-label">📅 Fecha del registro</div>
   <div class="input-card" style="margin-bottom:12px;">
@@ -215,6 +257,7 @@
     <div class="rlabel">Total neto del mes</div>
     <div class="rtotal" id="resNeto">$0</div>
     <div class="res-grid" id="resGrid"></div>
+    <div id="resNota" style="display:none;font-size:0.68rem;color:var(--muted);margin-top:10px;line-height:1.5;">* Proyección estimada: promedio neto por día × días hábiles (L–V) del mes + bonos. Es una referencia, no un valor garantizado.</div>
   </div>
 </div>
 
@@ -269,6 +312,15 @@
         <div class="config-sub" id="configNombre">—</div>
       </div>
       <button onclick="logout()" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:9px;font-size:0.8rem;cursor:pointer;">Salir</button>
+    </div>
+  </div>
+
+  <div class="section-label">🎨 Apariencia</div>
+  <div class="input-card">
+    <div class="config-sub" style="margin-bottom:10px;">Elige el tema. Se guarda en este dispositivo.</div>
+    <div class="tema-row">
+      <button class="tema-btn" id="temaClaro" onclick="aplicarTema('claro')">☀️ Claro</button>
+      <button class="tema-btn" id="temaOscuro" onclick="aplicarTema('oscuro')">🌙 Oscuro</button>
     </div>
   </div>
 
@@ -327,28 +379,58 @@ async function init() {
   const d = new Date()
   document.getElementById('headerMonth').textContent = meses[d.getMonth()] + ' ' + d.getFullYear()
 
+  // Mensaje de bienvenida personalizado (saludo según la hora)
+  const hora = d.getHours()
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
+  const primerNombre = (nombre || '').trim().split(' ')[0] || nombre
+  const diasSem = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+  document.getElementById('welcomeTitle').textContent = `👋 ${saludo}, ${primerNombre}`
+  document.getElementById('welcomeSub').textContent = `Hoy es ${diasSem[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()].toLowerCase()}. ¡A registrar tus pedidos!`
+
+  // Marcar el tema activo en la pestaña Config
+  marcarTemaActivo()
+
   // Fecha hoy y listener para cambio de fecha
   const fechaInput = document.getElementById('fechaDia')
-  fechaInput.value = d.toISOString().split('T')[0]
+  fechaInput.value = hoyISO()
+  fechaInput.max = hoyISO() // no permitir fechas futuras
   fechaInput.addEventListener('change', () => cargarDiaEnForm(fechaInput.value))
 
   // Fechas export: primer día del mes hasta hoy
-  const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+  const primerDia = ymd(new Date(d.getFullYear(), d.getMonth(), 1))
   document.getElementById('exportDesde').value = primerDia
-  document.getElementById('exportHasta').value = d.toISOString().split('T')[0]
+  document.getElementById('exportHasta').value = hoyISO()
 
-  await cargarConfig()
-  buildBonusGrid()
-  await cargarBonos()
-  buildRefTable()
-  await cargarDiaEnForm(d.toISOString().split('T')[0])
-  await cargarDias()
+  try {
+    await cargarConfig()
+    buildBonusGrid()
+    await cargarBonos()
+    buildRefTable()
+    await cargarDiaEnForm(hoyISO())
+    await cargarDias()
+  } catch (e) {
+    console.error(e)
+    showToast('⚠️ Error de conexión — revisa tu internet')
+  }
 }
 
 // ── AUTH ────────────────────────────────────────────────
 async function logout() {
   await sb.auth.signOut()
   window.location.href = 'index.html'
+}
+
+// ── TEMA (claro / oscuro) ───────────────────────────────
+function aplicarTema(t) {
+  if (t === 'claro') document.documentElement.setAttribute('data-theme', 'light')
+  else document.documentElement.removeAttribute('data-theme')
+  try { localStorage.setItem('tema', t) } catch (e) {}
+  marcarTemaActivo()
+}
+function marcarTemaActivo() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  document.getElementById('temaClaro')?.classList.toggle('active', claro)
+  document.getElementById('temaOscuro')?.classList.toggle('active', !claro)
 }
 
 // ── TABS ────────────────────────────────────────────────
@@ -381,6 +463,23 @@ async function guardarConfig() {
 function getTramo(n) { return TRAMOS.find(t => n >= t.min && n <= t.max) || null }
 function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL') }
 function getDescPct() { return parseFloat(document.getElementById('descInput')?.value) || 18.5 }
+// Fecha local (YYYY-MM-DD) sin desfase por zona horaria. Evita usar toISOString() (UTC),
+// que de noche podía marcar el día siguiente y guardar registros en la fecha equivocada.
+function ymd(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+function hoyISO() { return ymd(new Date()) }
+// Días hábiles (lunes a viernes) del mes de la fecha de referencia
+function diasHabilesMes(ref) {
+  const y = ref.getFullYear(), m = ref.getMonth()
+  const ultimo = new Date(y, m + 1, 0).getDate()
+  let c = 0
+  for (let d = 1; d <= ultimo; d++) { const wd = new Date(y, m, d).getDay(); if (wd >= 1 && wd <= 5) c++ }
+  return c
+}
 
 // ── CARGAR DÍA EN FORMULARIO ────────────────────────────
 async function cargarDiaEnForm(fechaISO) {
@@ -388,9 +487,9 @@ async function cargarDiaEnForm(fechaISO) {
   document.getElementById('pedidosList').innerHTML = ''
   pedidoCounter = 0
 
-  // Buscar si hay datos para esa fecha
+  // Buscar si hay datos para esa fecha (maybeSingle: no lanza error si no existe)
   const { data } = await sb.from('dias')
-    .select('*').eq('user_id', USER.id).eq('fecha', fechaISO).single()
+    .select('*').eq('user_id', USER.id).eq('fecha', fechaISO).maybeSingle()
 
   if (data && data.pedidos.length > 0) {
     // Cargar pedidos guardados
@@ -400,6 +499,27 @@ async function cargarDiaEnForm(fechaISO) {
     // Día sin datos: un pedido limpio
     agregarPedido()
   }
+}
+
+// ── COPIAR ÚLTIMO DÍA ───────────────────────────────────
+// Duplica los pedidos del último día guardado (anterior a la fecha seleccionada).
+// No guarda nada automáticamente: solo llena el formulario para revisar y guardar.
+async function copiarUltimoDia() {
+  const fechaISO = document.getElementById('fechaDia').value || hoyISO()
+  const { data, error } = await sb.from('dias')
+    .select('*').eq('user_id', USER.id).lt('fecha', fechaISO)
+    .order('fecha', { ascending: false }).limit(1)
+
+  if (error) { showToast('⚠️ Error de conexión'); return }
+  if (!data || data.length === 0 || !data[0].pedidos?.length) {
+    showToast('No hay un día anterior para copiar'); return
+  }
+
+  const dia = data[0]
+  document.getElementById('pedidosList').innerHTML = ''
+  pedidoCounter = 0
+  dia.pedidos.forEach(p => agregarPedido(p.skus))
+  showToast('📋 Copiado de ' + dia.fecha_label + ' — revisa y guarda')
 }
 
 // ── PEDIDOS ─────────────────────────────────────────────
@@ -530,8 +650,8 @@ async function guardarDia() {
 async function cargarDias() {
   const d = new Date()
   const ref = new Date(d.getFullYear(), d.getMonth() + mesOffset, 1)
-  const desde = new Date(ref.getFullYear(), ref.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).toISOString().split('T')[0]
+  const desde = ymd(new Date(ref.getFullYear(), ref.getMonth(), 1))
+  const hasta = ymd(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
 
   // Actualizar label del navegador de mes
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -540,12 +660,19 @@ async function cargarDias() {
   document.getElementById('btnMesSig').style.opacity = mesOffset >= 0 ? '0.3' : '1'
   document.getElementById('btnMesSig').style.pointerEvents = mesOffset >= 0 ? 'none' : 'auto'
 
-  const { data } = await sb.from('dias')
+  const { data, error } = await sb.from('dias')
     .select('*')
     .eq('user_id', USER.id)
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha', { ascending: false })
+
+  if (error) {
+    console.error(error)
+    document.getElementById('diasList').innerHTML =
+      `<div class="empty-state"><span class="icon">📡</span>No se pudo cargar. Revisa tu conexión.<br><button class="btn-add" style="margin-top:12px;" onclick="cargarDias()">🔄 Reintentar</button></div>`
+    return
+  }
 
   diasCache = data || []
   renderDias()
@@ -553,18 +680,18 @@ async function cargarDias() {
 
 function renderDias() {
   const list = document.getElementById('diasList')
-  const hoyISO = new Date().toISOString().split('T')[0]
+  const hoy = hoyISO()
   if (diasCache.length === 0) {
     list.innerHTML = `<div class="empty-state"><span class="icon">📋</span>No hay días registrados este mes.</div>`
   } else {
     list.innerHTML = ''
     diasCache.forEach(d => {
       const card = document.createElement('div')
-      card.className = 'dia-card' + (d.fecha === hoyISO ? ' today' : '')
+      card.className = 'dia-card' + (d.fecha === hoy ? ' today' : '')
       const pedStr = d.pedidos.map(p => p.skus + ' SKUs').join(', ')
       card.innerHTML = `
         <div class="dia-info">
-          <div class="dia-fecha">${d.fecha_label}${d.fecha === hoyISO ? ' 📍' : ''}</div>
+          <div class="dia-fecha">${d.fecha_label}${d.fecha === hoy ? ' 📍' : ''}</div>
           <div class="dia-pedidos">${d.pedidos.length} pedido(s): ${pedStr}</div>
         </div>
         <div class="dia-nums">
@@ -602,14 +729,30 @@ function renderResumen() {
   })
   const bonosNeto = totalBonosMonto * (1 - descPct/100)
   document.getElementById('resNeto').textContent = fmt(totalNeto + bonosNeto)
+
+  // Promedio por día y proyección al cierre del mes (según días hábiles L–V)
+  const diasTrab = diasCache.length
+  let proyeccionHTML = ''
+  if (diasTrab > 0) {
+    const promedioDia = totalNeto / diasTrab
+    const ref = new Date(new Date().getFullYear(), new Date().getMonth() + mesOffset, 1)
+    const proyeccion = promedioDia * diasHabilesMes(ref) + bonosNeto
+    proyeccionHTML = `
+    <div class="res-item"><div class="rl">Promedio / día</div><div class="rv g">${fmt(promedioDia)}</div></div>
+    <div class="res-item"><div class="rl">Proyección mes*</div><div class="rv g">${fmt(proyeccion)}</div></div>`
+  }
+
   document.getElementById('resGrid').innerHTML = `
-    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${diasCache.length}</div></div>
+    <div class="res-item"><div class="rl">Días trabajados</div><div class="rv">${diasTrab}</div></div>
     <div class="res-item"><div class="rl">Total pedidos</div><div class="rv">${totalPedidos}</div></div>
     <div class="res-item"><div class="rl">Total SKUs</div><div class="rv">${totalSKUs}</div></div>
     <div class="res-item"><div class="rl">Bruto pedidos</div><div class="rv">${fmt(totalBruto)}</div></div>
     <div class="res-item"><div class="rl">Neto pedidos</div><div class="rv g">${fmt(totalNeto)}</div></div>
     <div class="res-item"><div class="rl">Bonos netos</div><div class="rv g">${fmt(bonosNeto)}</div></div>
+    ${proyeccionHTML}
     ${bonosHTML}`
+  const nota = document.getElementById('resNota')
+  if (nota) nota.style.display = diasTrab > 0 ? 'block' : 'none'
 }
 
 // ── BONOS ───────────────────────────────────────────────
@@ -727,8 +870,8 @@ function showToast(msg) {
 async function borrarMes() {
   if (!confirm('¿Borrar todos los días de este mes?')) return
   const d = new Date()
-  const desde = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-  const hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+  const desde = ymd(new Date(d.getFullYear(), d.getMonth(), 1))
+  const hasta = ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0))
   await sb.from('dias').delete().eq('user_id', USER.id).gte('fecha', desde).lte('fecha', hasta)
   await sb.from('bonos').delete().eq('user_id', USER.id).eq('mes', d.getMonth()+1).eq('anio', d.getFullYear())
   bonosActivos.clear()

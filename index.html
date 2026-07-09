@@ -6,39 +6,54 @@
 <title>CalculaPedidos — Login</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script>
+  // Aplica el tema guardado antes de pintar para evitar parpadeo
+  (function(){ try { if (localStorage.getItem('tema') === 'claro') document.documentElement.setAttribute('data-theme','light'); } catch(e){} })()
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80; --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e; }
+  :root {
+    --bg:#0f0f0f; --card:#1a1a1a; --card2:#222; --yellow:#f5e642; --green:#4ade80;
+    --red:#f87171; --muted:#666; --text:#f0f0f0; --border:#2e2e2e;
+    --brand:#f5e642; --danger-soft:#2a1414; --success-soft:#0e1f0e;
+  }
+  :root[data-theme="light"] {
+    --bg:#f4f4f5; --card:#ffffff; --card2:#f0efec; --yellow:#b8860b; --green:#16a34a;
+    --red:#dc2626; --muted:#78716c; --text:#1c1917; --border:#e4e2df;
+    --brand:#f5e642; --danger-soft:#fde4e4; --success-soft:#dcfce7;
+  }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
 
   .box { background:var(--card); border:1px solid var(--border); border-radius:24px; padding:32px 24px; width:100%; max-width:380px; display:flex; flex-direction:column; gap:20px; }
   .logo { font-family:'Bebas Neue',cursive; font-size:2.4rem; color:var(--yellow); line-height:1; }
   .logo span { color:var(--text); }
-  .sub { font-size:0.82rem; color:var(--muted); margin-top:-14px; }
+  .sub { font-size:0.82rem; color:var(--muted); margin-top:4px; line-height:1.4; }
 
   .tabs { display:flex; background:var(--card2); border-radius:10px; padding:3px; gap:3px; }
   .tab { flex:1; padding:8px; text-align:center; border-radius:8px; font-size:0.82rem; font-weight:600; color:var(--muted); cursor:pointer; transition:all 0.2s; }
-  .tab.active { background:var(--yellow); color:#111; }
+  .tab.active { background:var(--brand); color:#111; }
 
   .field { display:flex; flex-direction:column; gap:6px; }
   .field label { font-size:0.75rem; color:var(--muted); font-weight:600; letter-spacing:1px; text-transform:uppercase; }
   .field input { background:var(--card2); border:1px solid var(--border); border-radius:11px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:1rem; padding:13px 14px; outline:none; transition:border-color 0.2s; }
   .field input:focus { border-color:var(--yellow); }
 
-  .btn { background:var(--yellow); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; transition:opacity 0.2s,transform 0.1s; width:100%; }
+  .btn { background:var(--brand); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.3rem; letter-spacing:1px; padding:14px; cursor:pointer; transition:opacity 0.2s,transform 0.1s; width:100%; }
   .btn:active { transform:scale(0.97); }
   .btn:disabled { opacity:0.5; cursor:not-allowed; }
 
-  .error { background:#2a1414; border:1px solid var(--red); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--red); display:none; }
-  .success { background:#0e1f0e; border:1px solid var(--green); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--green); display:none; }
+  .error { background:var(--danger-soft); border:1px solid var(--red); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--red); display:none; }
+  .success { background:var(--success-soft); border:1px solid var(--green); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--green); display:none; }
+  .tema-toggle { background:none; border:none; color:var(--muted); font-size:0.8rem; cursor:pointer; font-family:'DM Sans',sans-serif; padding:6px; align-self:center; }
+  .tema-toggle:hover { color:var(--yellow); }
 </style>
 </head>
 <body>
 <div class="box">
   <div>
     <div class="logo">Calcula<span>Pedidos</span></div>
-    <div class="sub">Registro de ganancias del mes</div>
+    <div class="sub" id="welcomeSub">👋 ¡Bienvenido! Ingresa para registrar tus ganancias</div>
   </div>
 
   <div class="tabs">
@@ -63,10 +78,25 @@
   <div class="success" id="successMsg"></div>
 
   <button class="btn" id="btnAction" onclick="action()">ENTRAR →</button>
+  <button class="tema-toggle" id="temaToggle" onclick="toggleTema()">🌙 Cambiar tema</button>
 </div>
 
 <script>
 let mode = 'login'
+
+// ── TEMA (claro / oscuro) ──
+function toggleTema() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  if (claro) document.documentElement.removeAttribute('data-theme')
+  else document.documentElement.setAttribute('data-theme', 'light')
+  try { localStorage.setItem('tema', claro ? 'oscuro' : 'claro') } catch (e) {}
+  actualizarTemaLabel()
+}
+function actualizarTemaLabel() {
+  const claro = document.documentElement.getAttribute('data-theme') === 'light'
+  document.getElementById('temaToggle').textContent = claro ? '🌙 Modo oscuro' : '☀️ Modo claro'
+}
+actualizarTemaLabel()
 
 async function checkSession() {
   const { data: { session } } = await sb.auth.getSession()
