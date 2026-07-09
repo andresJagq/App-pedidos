@@ -9,6 +9,10 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pedidos">
+<script>
+  // Detecta si llegamos desde un enlace de recuperación de contraseña (antes de que Supabase procese la URL)
+  window.__recovery = location.hash.indexOf('type=recovery') !== -1
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script>
@@ -52,6 +56,9 @@
   .success { background:var(--success-soft); border:1px solid var(--green); border-radius:10px; padding:10px 14px; font-size:0.82rem; color:var(--green); display:none; }
   .tema-toggle { background:none; border:none; color:var(--muted); font-size:0.8rem; cursor:pointer; font-family:'DM Sans',sans-serif; padding:6px; align-self:center; }
   .tema-toggle:hover { color:var(--yellow); }
+  .linklike { background:none; border:none; color:var(--yellow); font-size:0.78rem; cursor:pointer; font-family:'DM Sans',sans-serif; padding:2px 0; text-decoration:underline; align-self:flex-end; }
+  .support { text-align:center; font-size:0.78rem; color:var(--muted); line-height:1.5; }
+  .support a { color:var(--yellow); text-decoration:none; font-weight:600; }
 </style>
 </head>
 <body>
@@ -61,29 +68,49 @@
     <div class="sub" id="welcomeSub">👋 ¡Bienvenido! Ingresa para registrar tus ganancias</div>
   </div>
 
-  <div class="tabs">
-    <div class="tab active" onclick="setTab('login')">Ingresar</div>
-    <div class="tab" onclick="setTab('register')">Registrarse</div>
-  </div>
-
-  <div id="nombreField" class="field" style="display:none;">
-    <label>Nombre</label>
-    <input type="text" id="nombre" placeholder="Tu nombre" maxlength="40">
-  </div>
-  <div class="field">
-    <label>Email</label>
-    <input type="email" id="email" placeholder="correo@email.com">
-  </div>
-  <div class="field">
-    <label>Contraseña</label>
-    <input type="password" id="password" placeholder="••••••••">
-  </div>
-
   <div class="error" id="errorMsg"></div>
   <div class="success" id="successMsg"></div>
 
-  <button class="btn" id="btnAction" onclick="action()">ENTRAR →</button>
+  <!-- Panel normal de ingreso / registro -->
+  <div id="loginPanel" style="display:flex;flex-direction:column;gap:20px;">
+    <div class="tabs">
+      <div class="tab active" onclick="setTab('login')">Ingresar</div>
+      <div class="tab" onclick="setTab('register')">Registrarse</div>
+    </div>
+
+    <div id="nombreField" class="field" style="display:none;">
+      <label>Nombre</label>
+      <input type="text" id="nombre" placeholder="Tu nombre" maxlength="40">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="correo@email.com">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="password" placeholder="••••••••">
+    </div>
+
+    <button class="linklike" id="forgotLink" onclick="recuperarPassword()">¿Olvidaste tu contraseña?</button>
+
+    <button class="btn" id="btnAction" onclick="action()">ENTRAR →</button>
+  </div>
+
+  <!-- Panel para elegir nueva contraseña (aparece al llegar desde el correo de recuperación) -->
+  <div id="resetPanel" style="display:none;flex-direction:column;gap:20px;">
+    <div class="field">
+      <label>Nueva contraseña</label>
+      <input type="password" id="newPass" placeholder="••••••••">
+    </div>
+    <div class="field">
+      <label>Repite la contraseña</label>
+      <input type="password" id="newPass2" placeholder="••••••••">
+    </div>
+    <button class="btn" onclick="actualizarPassword()">GUARDAR CONTRASEÑA</button>
+  </div>
+
   <button class="tema-toggle" id="temaToggle" onclick="toggleTema()">🌙 Cambiar tema</button>
+  <div class="support">¿Problemas para entrar? <a href="mailto:trabajojagq@gmail.com?subject=Problema%20para%20iniciar%20sesi%C3%B3n%20-%20CalculaPedidos">Escríbenos a soporte ✉️</a></div>
 </div>
 
 <script>
@@ -103,9 +130,44 @@ function actualizarTemaLabel() {
 }
 actualizarTemaLabel()
 
+// ── RECUPERACIÓN DE CONTRASEÑA ──
+let recoveryMode = false
+// Cuando el usuario abre el enlace del correo, Supabase dispara este evento
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') { recoveryMode = true; mostrarReset() }
+})
+function mostrarReset() {
+  document.getElementById('loginPanel').style.display = 'none'
+  document.getElementById('resetPanel').style.display = 'flex'
+  document.getElementById('welcomeSub').textContent = '🔑 Elige tu nueva contraseña'
+  hide()
+}
+// Enviar el correo con el enlace de recuperación
+async function recuperarPassword() {
+  const email = document.getElementById('email').value.trim()
+  if (!email) return showError('Escribe tu email arriba y toca de nuevo "¿Olvidaste tu contraseña?"')
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })
+  if (error) { showError('No se pudo enviar el correo. Revisa que el email sea correcto.'); return }
+  showSuccess('📧 Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja (y la carpeta de spam).')
+}
+// Guardar la nueva contraseña
+async function actualizarPassword() {
+  const p1 = document.getElementById('newPass').value
+  const p2 = document.getElementById('newPass2').value
+  if (!p1 || p1.length < 6) return showError('La contraseña debe tener al menos 6 caracteres')
+  if (p1 !== p2) return showError('Las contraseñas no coinciden')
+  const { error } = await sb.auth.updateUser({ password: p1 })
+  if (error) { showError('No se pudo actualizar. El enlace pudo expirar; pide otro correo.'); return }
+  showSuccess('✅ Contraseña actualizada. Ya puedes ingresar.')
+  await sb.auth.signOut()
+  setTimeout(() => { location.href = location.origin + location.pathname }, 1600)
+}
+
 async function checkSession() {
+  // Si venimos de un enlace de recuperación, NO entrar directo: dejar elegir nueva contraseña
+  if (window.__recovery) { mostrarReset(); return }
   const { data: { session } } = await sb.auth.getSession()
-  if (session) window.location.href = 'app.html'
+  if (session && !recoveryMode) window.location.href = 'app.html'
 }
 checkSession()
 
@@ -113,6 +175,7 @@ function setTab(m) {
   mode = m
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&m==='login')||(i===1&&m==='register')))
   document.getElementById('nombreField').style.display = m === 'register' ? 'flex' : 'none'
+  document.getElementById('forgotLink').style.display = m === 'login' ? 'block' : 'none'
   document.getElementById('btnAction').textContent = m === 'login' ? 'ENTRAR →' : 'REGISTRARSE →'
   hide()
 }
