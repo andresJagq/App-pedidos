@@ -24,7 +24,7 @@
     --red:#dc2626; --muted:#6b7280; --text:#111827; --border:#e2e6e3; --brand:#34d399; --on-brand:#06281b;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 60px; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; padding:0 0 90px; }
   header { background:var(--brand); padding:18px 16px 26px; position:relative; }
   header::after { content:''; position:absolute; bottom:-20px; left:0; right:0; height:40px; background:var(--bg); border-radius:40px 40px 0 0; }
   .header-top { display:flex; justify-content:space-between; align-items:center; }
@@ -71,6 +71,7 @@
   .notif .quien { font-size:0.73rem; color:var(--muted); word-break:break-word; }
   .notif .texto { font-size:0.82rem; margin-top:6px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
   .notif .cuando { font-size:0.68rem; color:var(--muted); margin-top:6px; }
+  .notif .alerta { font-size:0.74rem; color:var(--red); line-height:1.5; margin-top:6px; }
   .notif .acciones { display:flex; flex-direction:column; gap:5px; }
   .notif .acciones button { background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px; padding:4px 7px; font-size:0.7rem; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
   .notif .acciones button:active { border-color:var(--green); color:var(--green); }
@@ -92,8 +93,22 @@
   .btn-reset:disabled { opacity:0.5; }
   .card-btns { display:flex; gap:6px; flex-shrink:0; }
 
+  /* ── Navegación inferior por secciones ── */
+  .bnav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--border); padding:8px 6px; padding-bottom:calc(8px + env(safe-area-inset-bottom)); z-index:30; max-width:500px; margin:0 auto; }
+  .bitem { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; color:var(--muted); font-size:0.64rem; font-weight:600; cursor:pointer; position:relative; background:none; border:none; font-family:'DM Sans',sans-serif; transition:color 0.2s; }
+  .bicon { font-size:1.25rem; line-height:1; filter:grayscale(1) opacity(0.55); transition:transform 0.2s; }
+  .bitem.active { color:var(--yellow); }
+  .bitem.active .bicon { filter:none; transform:translateY(-2px) scale(1.08); }
+  .bitem.active::before { content:''; position:absolute; top:-8px; width:30px; height:4px; border-radius:0 0 6px 6px; background:var(--brand); }
+  .bitem:active { transform:scale(0.96); }
+  .nav-badge { position:absolute; top:0; right:50%; margin-right:-22px; background:var(--red); color:#fff; font-size:0.6rem; font-weight:700; border-radius:20px; padding:1px 5px; min-width:16px; }
+  .nav-badge.oculto { display:none; }
+  .panel { display:none; }
+  .panel.active { display:block; animation:panelIn 0.25s ease; }
+  @keyframes panelIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
   .loading { text-align:center; padding:30px; color:var(--muted); }
-  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; }
+  .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; max-width:88%; text-align:center; }
 </style>
 </head>
 <body>
@@ -109,35 +124,60 @@
 
 <div class="content">
 
-  <div class="notif-head" style="margin-top:8px;">
-    <div class="section-label" style="margin:0;">🔔 Notificaciones<span class="badge cero" id="notifBadge">0</span></div>
-    <div class="notif-filtros">
-      <button class="chip active" id="chipNoLeidas" onclick="setFiltroNotif('no_leidas')">Sin leer</button>
-      <button class="chip" id="chipTodas" onclick="setFiltroNotif('todas')">Todas</button>
+  <!-- ══ AVISOS ══ -->
+  <div class="panel active" id="panel-avisos">
+    <div class="notif-head" style="margin-top:8px;">
+      <div class="section-label" style="margin:0;">🔔 Notificaciones<span class="badge cero" id="notifBadge">0</span></div>
+      <div class="notif-filtros">
+        <button class="chip active" id="chipNoLeidas" onclick="setFiltroNotif('no_leidas')">Sin leer</button>
+        <button class="chip" id="chipTodas" onclick="setFiltroNotif('todas')">Todas</button>
+      </div>
     </div>
-  </div>
-  <div class="notif-list" id="notifList"><div class="loading">Cargando...</div></div>
-  <button class="btn-todas" id="btnMarcarTodas" onclick="marcarTodasLeidas()">✓ Marcar todas como leídas</button>
-
-  <div class="section-label" style="margin-top:8px;">📊 Rango de fechas</div>
-  <div class="export-card">
-    <!-- Navegador rápido de meses -->
-    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:12px;">
-      <button onclick="cambiarMesAdmin(-1)" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">‹</button>
-      <div style="font-family:'Bebas Neue',cursive;font-size:1rem;letter-spacing:1px;" id="mesAdminLabel">—</div>
-      <button onclick="cambiarMesAdmin(1)" id="btnMesAdminSig" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">›</button>
-    </div>
-    <div class="dates-row">
-      <div><label>Desde</label><input type="date" id="exportDesde" onchange="cargarUsuarios()"></div>
-      <div><label>Hasta</label><input type="date" id="exportHasta" onchange="cargarUsuarios()"></div>
-    </div>
-    <button class="btn-export" id="btnExportAll" onclick="exportarTodos()">⬇️ EXPORTAR TODOS</button>
+    <div class="notif-list" id="notifList"><div class="loading">Cargando...</div></div>
+    <button class="btn-todas" id="btnMarcarTodas" onclick="marcarTodasLeidas()">✓ Marcar todas como leídas</button>
   </div>
 
-  <div class="section-label">👥 Usuarios registrados</div>
-  <div class="users-list" id="usersList"><div class="loading">Cargando...</div></div>
+  <!-- ══ USUARIOS ══ -->
+  <div class="panel" id="panel-usuarios">
+    <div class="section-label" style="margin-top:8px;">📅 Mes que estás viendo</div>
+    <div class="export-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;">
+        <button onclick="cambiarMesAdmin(-1)" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">‹</button>
+        <div style="font-family:'Bebas Neue',cursive;font-size:1rem;letter-spacing:1px;" id="mesAdminLabel">—</div>
+        <button onclick="cambiarMesAdmin(1)" id="btnMesAdminSig" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 6px;">›</button>
+      </div>
+    </div>
+
+    <div class="section-label">👥 Usuarios registrados</div>
+    <div class="users-list" id="usersList"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <!-- ══ EXPORTAR ══ -->
+  <div class="panel" id="panel-exportar">
+    <div class="section-label" style="margin-top:8px;">📊 Rango a exportar</div>
+    <div class="export-card">
+      <div class="dates-row">
+        <div><label>Desde</label><input type="date" id="exportDesde"></div>
+        <div><label>Hasta</label><input type="date" id="exportHasta"></div>
+      </div>
+      <button class="btn-export" id="btnExportAll" onclick="exportarTodos()">⬇️ EXPORTAR TODOS</button>
+      <div style="font-size:0.76rem;color:var(--muted);line-height:1.6;margin-top:12px;">
+        Genera un Excel con una hoja por cada usuario que tenga días registrados
+        en el rango. Para bajar el de una sola persona, usa el botón de su tarjeta
+        en <b>Usuarios</b>.
+      </div>
+    </div>
+  </div>
 
 </div>
+
+<nav class="bnav">
+  <button class="bitem active" id="nav-avisos" onclick="showPanel('avisos')">
+    <span class="bicon">🔔</span>Avisos<span class="nav-badge oculto" id="navBadge">0</span>
+  </button>
+  <button class="bitem" id="nav-usuarios" onclick="showPanel('usuarios')"><span class="bicon">👥</span>Usuarios</button>
+  <button class="bitem" id="nav-exportar" onclick="showPanel('exportar')"><span class="bicon">⬇️</span>Exportar</button>
+</nav>
 <!-- Modal con la contraseña temporal recién generada -->
 <div class="modal-bg" id="passModal">
   <div class="modal">
@@ -160,6 +200,7 @@
 
 <script>
 let USER = null
+let perfiles = []
 let allUsers = []
 let mesOffsetAdmin = 0
 let notificaciones = []
@@ -189,6 +230,25 @@ function ymd(date) {
   return `${y}-${m}-${d}`
 }
 
+// ── SECCIONES ───────────────────────────────────────────
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.bitem').forEach(b => b.classList.remove('active'))
+  document.getElementById('panel-' + name).classList.add('active')
+  document.getElementById('nav-' + name).classList.add('active')
+  window.scrollTo(0, 0)
+}
+
+// Rango (desde, hasta) del mes que se está viendo en la pestaña Usuarios
+function rangoMes() {
+  const d = new Date()
+  const ref = new Date(d.getFullYear(), d.getMonth() + mesOffsetAdmin, 1)
+  return {
+    desde: ymd(new Date(ref.getFullYear(), ref.getMonth(), 1)),
+    hasta: ymd(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
+  }
+}
+
 function actualizarMesAdminLabel() {
   const d = new Date()
   const ref = new Date(d.getFullYear(), d.getMonth() + mesOffsetAdmin, 1)
@@ -196,11 +256,6 @@ function actualizarMesAdminLabel() {
   document.getElementById('mesAdminLabel').textContent = meses[ref.getMonth()] + ' ' + ref.getFullYear()
   document.getElementById('btnMesAdminSig').style.opacity = mesOffsetAdmin >= 0 ? '0.3' : '1'
   document.getElementById('btnMesAdminSig').style.pointerEvents = mesOffsetAdmin >= 0 ? 'none' : 'auto'
-  // Actualizar fechas
-  const desde = ymd(new Date(ref.getFullYear(), ref.getMonth(), 1))
-  const hasta = ymd(new Date(ref.getFullYear(), ref.getMonth() + 1, 0))
-  document.getElementById('exportDesde').value = desde
-  document.getElementById('exportHasta').value = hasta
 }
 
 function cambiarMesAdmin(delta) {
@@ -219,12 +274,27 @@ async function init() {
   if (!profile?.es_admin) { window.location.href = 'app.html'; return }
 
   actualizarMesAdminLabel()
+
+  // Rango por defecto de la pestaña Exportar: el mes en curso
+  const hoy = new Date()
+  document.getElementById('exportDesde').value = ymd(new Date(hoy.getFullYear(), hoy.getMonth(), 1))
+  document.getElementById('exportHasta').value = ymd(hoy)
+
+  // Los perfiles primero: las notificaciones los necesitan para saber de quién
+  // hablan cuando el aviso llega sin nombre.
+  await cargarPerfiles()
   await cargarNotificaciones()
   await cargarUsuarios()
 
-  // Refresca el buzón cada 60 s mientras el panel esté a la vista
-  setInterval(() => { if (!document.hidden) cargarNotificaciones() }, 60000)
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarNotificaciones() })
+  // Refresca el buzón cada 60 s mientras el panel esté a la vista. También los
+  // perfiles, para que un usuario recién registrado aparezca con su nombre.
+  const refrescar = async () => {
+    if (document.hidden) return
+    await cargarPerfiles()
+    await cargarNotificaciones()
+  }
+  setInterval(refrescar, 60000)
+  document.addEventListener('visibilitychange', refrescar)
 }
 
 async function logout() {
@@ -247,6 +317,19 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => (
     { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
   ))
+}
+
+// ¿A qué usuario registrado corresponde este aviso?
+function resolverPersona(n) {
+  if (n.user_id) {
+    const porId = perfiles.find(p => p.id === n.user_id)
+    if (porId) return porId
+  }
+  if (n.email) {
+    const mail = n.email.trim().toLowerCase()
+    return perfiles.find(p => (p.email || '').trim().toLowerCase() === mail) || null
+  }
+  return null
 }
 
 function tiempoRelativo(iso) {
@@ -283,6 +366,11 @@ function renderNotificaciones() {
   const badge = document.getElementById('notifBadge')
   badge.textContent = sinLeer
   badge.classList.toggle('cero', sinLeer === 0)
+
+  const navBadge = document.getElementById('navBadge')
+  navBadge.textContent = sinLeer > 99 ? '99+' : sinLeer
+  navBadge.classList.toggle('oculto', sinLeer === 0)
+
   document.getElementById('btnMarcarTodas').style.display = sinLeer > 0 ? 'block' : 'none'
 
   const visibles = filtroNotif === 'no_leidas' ? notificaciones.filter(n => !n.leida) : notificaciones
@@ -295,7 +383,20 @@ function renderNotificaciones() {
   list.innerHTML = ''
   for (const n of visibles) {
     const meta = NOTIF_META[n.tipo] || { ico:'🔔', titulo:n.tipo }
-    const quien = [n.nombre, n.email].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'
+
+    // Cruzamos el aviso con la lista de usuarios para saber de quién se trata,
+    // aunque el aviso venga sin nombre (p. ej. "olvidé mi contraseña").
+    const p = resolverPersona(n)
+    const nombre = p?.nombre || n.nombre || null
+    const email  = p?.email  || n.email  || null
+    const quien = nombre
+      ? `<b>${esc(nombre)}</b>${email ? ' · ' + esc(email) : ''}`
+      : (email ? esc(email) : 'Sin datos de contacto')
+
+    // Si el correo no corresponde a ninguna cuenta, hay que decirlo: Supabase
+    // responde "enviado" incluso para correos que no existen.
+    const huerfano = !p && email && (n.tipo === 'reset_solicitado' || n.tipo === 'soporte')
+
     const el = document.createElement('div')
     el.className = 'notif' + (n.leida ? '' : ' no-leida')
     el.innerHTML = `
@@ -303,6 +404,7 @@ function renderNotificaciones() {
       <div class="cuerpo">
         <div class="titulo">${esc(meta.titulo)}</div>
         <div class="quien">${quien}</div>
+        ${huerfano ? '<div class="alerta">⚠️ Ese correo no corresponde a ninguna cuenta registrada. No le llegó ningún enlace.</div>' : ''}
         ${n.mensaje ? `<div class="texto">${esc(n.mensaje)}</div>` : ''}
         <div class="cuando">${esc(tiempoRelativo(n.created_at))}</div>
       </div>
@@ -345,18 +447,25 @@ async function borrarNotif(id) {
   renderNotificaciones()
 }
 
+// Carga la lista de perfiles. Se usa tanto en la pestaña Usuarios como para
+// ponerle nombre a las notificaciones.
+async function cargarPerfiles() {
+  const { data } = await sb.from('profiles').select('*').order('nombre')
+  perfiles = data || []
+  return perfiles
+}
+
 async function cargarUsuarios() {
-  const desde = document.getElementById('exportDesde').value || ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-  const hasta = document.getElementById('exportHasta').value || ymd(new Date())
-
-  const { data: profiles } = await sb.from('profiles').select('*').order('nombre')
-  if (!profiles) return
-
+  const { desde, hasta } = rangoMes()
   const list = document.getElementById('usersList')
+
+  await cargarPerfiles()
+  if (perfiles.length === 0) { list.innerHTML = '<div class="vacio">No hay usuarios registrados</div>'; return }
+
   list.innerHTML = ''
   allUsers = []
 
-  for (const p of profiles) {
+  for (const p of perfiles) {
     const { data: dias } = await sb.from('dias')
       .select('*').eq('user_id', p.id).gte('fecha', desde).lte('fecha', hasta)
 
@@ -369,9 +478,9 @@ async function cargarUsuarios() {
     card.className = 'user-card'
     card.innerHTML = `
       <div class="top">
-        <div>
-          <div class="name">${esc(p.nombre || '—')}</div>
-          <div class="email">${p.id.substring(0,8)}... ${p.es_admin ? '⭐ admin' : ''}</div>
+        <div style="min-width:0;">
+          <div class="name">${esc(p.nombre || '—')} ${p.es_admin ? '⭐' : ''}</div>
+          <div class="email">${esc(p.email || 'sin correo · ' + p.id.substring(0,8))}</div>
         </div>
         <div class="card-btns">
           ${p.id === USER.id ? '' : `<button class="btn-reset" onclick="resetPassword('${p.id}', this)">🔑 Clave</button>`}
@@ -432,19 +541,37 @@ function cerrarPassModal() {
 
 async function exportarUsuario(userId) {
   const userData = allUsers.find(u => u.profile.id === userId)
-  if (!userData || userData.dias.length === 0) { showToast('⚠️ Sin datos en ese rango'); return }
-  generarExcel([userData])
+  if (!userData || userData.dias.length === 0) { showToast('⚠️ Sin datos en ese mes'); return }
+  const { desde, hasta } = rangoMes()
+  generarExcel([userData], desde, hasta)
 }
 
+// La pestaña Exportar trae sus propios datos: su rango es independiente del
+// mes que se esté viendo en Usuarios.
 async function exportarTodos() {
+  const desde = document.getElementById('exportDesde').value
+  const hasta = document.getElementById('exportHasta').value
+  if (!desde || !hasta) { showToast('⚠️ Elige las dos fechas'); return }
+  if (desde > hasta) { showToast('⚠️ "Desde" no puede ser posterior a "Hasta"'); return }
+
   const btn = document.getElementById('btnExportAll')
   btn.disabled = true; btn.textContent = 'Generando...'
-  await cargarUsuarios()
-  generarExcel(allUsers)
+
+  const lista = await cargarPerfiles()
+  const datos = []
+  for (const p of lista) {
+    const { data: dias } = await sb.from('dias')
+      .select('*').eq('user_id', p.id).gte('fecha', desde).lte('fecha', hasta)
+    datos.push({ profile: p, dias: dias || [] })
+  }
+
   btn.disabled = false; btn.textContent = '⬇️ EXPORTAR TODOS'
+
+  if (datos.every(d => d.dias.length === 0)) { showToast('⚠️ Sin datos en ese rango'); return }
+  generarExcel(datos, desde, hasta)
 }
 
-function generarExcel(usersData) {
+function generarExcel(usersData, desde, hasta) {
   const wb = XLSX.utils.book_new()
 
   usersData.forEach(({ profile, dias }) => {
@@ -476,9 +603,8 @@ function generarExcel(usersData) {
     XLSX.utils.book_append_sheet(wb, ws, nombre)
   })
 
-  const desde = document.getElementById('exportDesde').value
-  const hasta = document.getElementById('exportHasta').value
-  XLSX.writeFile(wb, `ganancias_todos_${desde}_${hasta}.xlsx`)
+  const quien = usersData.length === 1 ? (usersData[0].profile.nombre || 'usuario') : 'todos'
+  XLSX.writeFile(wb, `ganancias_${quien}_${desde}_${hasta}.xlsx`.replace(/\s+/g, '-'))
   showToast('✅ Excel descargado')
 }
 
