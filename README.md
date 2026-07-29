@@ -18,6 +18,27 @@ calculadora-pedidos/
 3. En la pestaña **Mes**: marca las bonificaciones logradas y ve el resumen mensual
 4. En la pestaña **Config**: ajusta el descuento y la base fija
 
+## Panel de admin
+
+`admin.html` está dividido en tres secciones, con navegación inferior:
+
+| Sección | Qué tiene |
+|---|---|
+| 🔔 Avisos | Buzón de notificaciones, con contador de sin leer en la barra |
+| 👥 Usuarios | Navegador de mes, lista con nombre + correo, estadísticas, botón de clave y de Excel |
+| ⬇️ Exportar | Rango de fechas propio y exportación de todos a un Excel |
+
+El rango de **Exportar** es independiente del mes que estés viendo en
+**Usuarios**, para poder sacar un reporte de varios meses sin perder la vista.
+
+### El correo en los perfiles
+
+Para que el panel muestre el correo junto al nombre —y para poder identificar
+quién pidió restablecer su contraseña— la tabla `profiles` necesita una columna
+`email`. Se agrega ejecutando `supabase-email-perfiles.sql` una vez en el SQL
+Editor. El archivo también rellena los correos de los usuarios que ya existen y
+deja un trigger que la mantiene sincronizada con `auth.users`.
+
 ## Notificaciones en el panel admin
 
 El panel de admin (`admin.html`) tiene un buzón 🔔 donde llegan los avisos, sin
@@ -36,7 +57,20 @@ necesidad de configurar ningún correo:
 2. Pegar todo el contenido de `supabase-notificaciones.sql`
 3. Click en **Run**
 
-El buzón se refresca solo cada minuto mientras el panel está abierto.
+El buzón se refresca solo cada minuto mientras el panel está abierto, y cruza
+cada aviso con la lista de usuarios para mostrar el nombre y el correo aunque el
+aviso llegue sin ellos.
+
+### Sobre "olvidé mi contraseña"
+
+Supabase responde **"correo enviado"** aunque la dirección no exista: es una
+protección deliberada para que nadie pueda averiguar qué correos están
+registrados probando uno por uno. Por eso el aviso se guarda igual.
+
+Cuando el correo del aviso no coincide con ninguna cuenta, el buzón lo marca con
+un ⚠️ y avisa que a esa persona **no le llegó ningún enlace** — casi siempre es
+un correo mal escrito, y ahí conviene generarle una contraseña temporal desde
+**Usuarios**.
 
 ## Restablecer la contraseña de alguien
 
