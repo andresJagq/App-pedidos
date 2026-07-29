@@ -413,7 +413,10 @@
   <div class="section-label">🆘 Soporte</div>
   <div class="input-card">
     <div class="config-sub" style="margin-bottom:10px;">¿Tienes un problema o una duda? Escríbenos y te ayudamos.</div>
-    <a class="tema-btn" style="width:100%;display:block;text-align:center;text-decoration:none;line-height:1.2;" href="mailto:trabajojagq@gmail.com?subject=Soporte%20CalculaPedidos">✉️ Contactar soporte</a>
+    <textarea id="sopMensaje" maxlength="1000" placeholder="Cuéntanos qué pasó..." oninput="contarSoporte()"
+      style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.92rem;padding:12px;outline:none;resize:vertical;min-height:100px;"></textarea>
+    <div class="config-sub" id="sopContador" style="text-align:right;margin:6px 0 10px;">0 / 1000</div>
+    <button class="tema-btn" id="btnEnviarSoporte" style="width:100%;" onclick="enviarSoporte()">✉️ Enviar mensaje</button>
   </div>
 
   <div class="section-label">🗑️ Datos</div>
@@ -1090,6 +1093,29 @@ function toggleRef() {
   const open = card.style.display === 'none'
   card.style.display = open ? 'block' : 'none'
   icon.textContent = open ? '▲' : '▼'
+}
+
+// ── SOPORTE (llega al panel del admin) ──────────────────
+function contarSoporte() {
+  const n = document.getElementById('sopMensaje').value.length
+  document.getElementById('sopContador').textContent = n + ' / 1000'
+}
+async function enviarSoporte() {
+  const ta = document.getElementById('sopMensaje')
+  const mensaje = ta.value.trim()
+  if (!mensaje) { showToast('⚠️ Escribe tu mensaje primero'); return }
+  const btn = document.getElementById('btnEnviarSoporte')
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  const ok = await notificar('soporte', {
+    mensaje,
+    email: USER?.email || null,
+    nombre: PROFILE?.nombre || null,
+    user_id: USER?.id || null
+  })
+  btn.disabled = false; btn.textContent = '✉️ Enviar mensaje'
+  if (!ok) { showToast('⚠️ No se pudo enviar. Revisa tu conexión'); return }
+  ta.value = ''; contarSoporte()
+  showToast('✅ Mensaje enviado')
 }
 
 // ── UTILS ───────────────────────────────────────────────

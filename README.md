@@ -18,6 +18,26 @@ calculadora-pedidos/
 3. En la pestaña **Mes**: marca las bonificaciones logradas y ve el resumen mensual
 4. En la pestaña **Config**: ajusta el descuento y la base fija
 
+## Notificaciones en el panel admin
+
+El panel de admin (`admin.html`) tiene un buzón 🔔 donde llegan los avisos, sin
+necesidad de configurar ningún correo:
+
+| Aviso | Cuándo aparece |
+|---|---|
+| 🆘 Mensaje de soporte | El usuario escribe desde el login o desde Ajustes |
+| 🔑 Pidió restablecer su contraseña | Toca "¿Olvidaste tu contraseña?" |
+| ✅ Cambió su contraseña | Terminó de elegir la contraseña nueva |
+| 👤 Nuevo registro | Alguien crea una cuenta |
+
+**Antes de usarlo, hay que crear la tabla una sola vez:**
+
+1. Entrar a Supabase → **SQL Editor** → **New query**
+2. Pegar todo el contenido de `supabase-notificaciones.sql`
+3. Click en **Run**
+
+El buzón se refresca solo cada minuto mientras el panel está abierto.
+
 ## Deploy en Vercel (paso a paso)
 
 ### 1. Crear cuenta en GitHub

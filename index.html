@@ -58,7 +58,10 @@
   .tema-toggle:hover { color:var(--yellow); }
   .linklike { background:none; border:none; color:var(--yellow); font-size:0.78rem; cursor:pointer; font-family:'DM Sans',sans-serif; padding:2px 0; text-decoration:underline; align-self:flex-end; }
   .support { text-align:center; font-size:0.78rem; color:var(--muted); line-height:1.5; }
-  .support a { color:var(--yellow); text-decoration:none; font-weight:600; }
+  .support button { background:none; border:none; color:var(--yellow); text-decoration:underline; font-weight:600; font-size:0.78rem; font-family:'DM Sans',sans-serif; cursor:pointer; padding:0; }
+  .field textarea { background:var(--card2); border:1px solid var(--border); border-radius:11px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.95rem; padding:13px 14px; outline:none; resize:vertical; min-height:110px; transition:border-color 0.2s; }
+  .field textarea:focus { border-color:var(--yellow); }
+  .btn-sec { background:var(--card2); border:1px solid var(--border); color:var(--muted); border-radius:11px; font-family:'DM Sans',sans-serif; font-size:0.85rem; font-weight:600; padding:11px; cursor:pointer; width:100%; }
 </style>
 </head>
 <body>
@@ -109,8 +112,26 @@
     <button class="btn" onclick="actualizarPassword()">GUARDAR CONTRASEÑA</button>
   </div>
 
+  <!-- Panel de soporte: el mensaje llega al panel del admin, no a un correo -->
+  <div id="soportePanel" style="display:none;flex-direction:column;gap:20px;">
+    <div class="field">
+      <label>Tu nombre</label>
+      <input type="text" id="sopNombre" placeholder="Tu nombre" maxlength="40">
+    </div>
+    <div class="field">
+      <label>Tu email</label>
+      <input type="email" id="sopEmail" placeholder="correo@email.com">
+    </div>
+    <div class="field">
+      <label>¿Qué problema tienes?</label>
+      <textarea id="sopMensaje" maxlength="1000" placeholder="Cuéntanos qué pasó..."></textarea>
+    </div>
+    <button class="btn" id="btnEnviarSoporte" onclick="enviarSoporte()">ENVIAR MENSAJE</button>
+    <button class="btn-sec" onclick="cerrarSoporte()">Volver</button>
+  </div>
+
   <button class="tema-toggle" id="temaToggle" onclick="toggleTema()">🌙 Cambiar tema</button>
-  <div class="support">¿Problemas para entrar? <a href="mailto:trabajojagq@gmail.com?subject=Problema%20para%20iniciar%20sesi%C3%B3n%20-%20CalculaPedidos">Escríbenos a soporte ✉️</a></div>
+  <div class="support" id="supportLine">¿Problemas para entrar? <button onclick="abrirSoporte()">Escríbenos a soporte ✉️</button></div>
 </div>
 
 <script>
@@ -148,6 +169,8 @@ async function recuperarPassword() {
   if (!email) return showError('Escribe tu email arriba y toca de nuevo "¿Olvidaste tu contraseña?"')
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })
   if (error) { showError('No se pudo enviar el correo. Revisa que el email sea correcto.'); return }
+  // Aviso al panel del admin
+  notificar('reset_solicitado', { email, mensaje: 'Pidió el enlace para restablecer su contraseña.' })
   showSuccess('📧 Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja (y la carpeta de spam).')
 }
 // Guardar la nueva contraseña
@@ -158,9 +181,52 @@ async function actualizarPassword() {
   if (p1 !== p2) return showError('Las contraseñas no coinciden')
   const { error } = await sb.auth.updateUser({ password: p1 })
   if (error) { showError('No se pudo actualizar. El enlace pudo expirar; pide otro correo.'); return }
+  // Aviso al panel del admin (con la sesión aún abierta, para saber quién fue)
+  const { data: { user } } = await sb.auth.getUser()
+  await notificar('password_cambiada', {
+    email: user?.email || null,
+    nombre: user?.user_metadata?.nombre || null,
+    user_id: user?.id || null,
+    mensaje: 'Cambió su contraseña correctamente.'
+  })
   showSuccess('✅ Contraseña actualizada. Ya puedes ingresar.')
   await sb.auth.signOut()
   setTimeout(() => { location.href = location.origin + location.pathname }, 1600)
+}
+
+// ── SOPORTE (llega al panel del admin) ──
+function abrirSoporte() {
+  document.getElementById('loginPanel').style.display = 'none'
+  document.getElementById('resetPanel').style.display = 'none'
+  document.getElementById('soportePanel').style.display = 'flex'
+  document.getElementById('supportLine').style.display = 'none'
+  document.getElementById('welcomeSub').textContent = '🆘 Cuéntanos tu problema y te ayudamos'
+  // Reaprovecha lo que ya escribió arriba
+  const email = document.getElementById('email').value.trim()
+  if (email) document.getElementById('sopEmail').value = email
+  hide()
+}
+function cerrarSoporte() {
+  document.getElementById('soportePanel').style.display = 'none'
+  document.getElementById('supportLine').style.display = 'block'
+  if (recoveryMode || window.__recovery) { mostrarReset(); return }
+  document.getElementById('loginPanel').style.display = 'flex'
+  document.getElementById('welcomeSub').textContent = '👋 ¡Bienvenido! Ingresa para registrar tus ganancias'
+  hide()
+}
+async function enviarSoporte() {
+  const nombre = document.getElementById('sopNombre').value.trim()
+  const email = document.getElementById('sopEmail').value.trim()
+  const mensaje = document.getElementById('sopMensaje').value.trim()
+  if (!mensaje) return showError('Escribe tu mensaje antes de enviar')
+  const btn = document.getElementById('btnEnviarSoporte')
+  btn.disabled = true; btn.textContent = 'ENVIANDO...'
+  const ok = await notificar('soporte', { nombre, email, mensaje })
+  btn.disabled = false; btn.textContent = 'ENVIAR MENSAJE'
+  if (!ok) return showError('No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.')
+  document.getElementById('sopMensaje').value = ''
+  cerrarSoporte()
+  showSuccess('✅ Mensaje enviado. Te responderemos pronto.')
 }
 
 async function checkSession() {
@@ -215,13 +281,20 @@ async function action() {
       options: { data: { nombre } }
     })
     if (error) { showError(error.message); btn.disabled = false; return }
+    notificar('registro', { nombre, email, mensaje: 'Creó una cuenta nueva.' })
     showSuccess('✅ Cuenta creada. Ya puedes ingresar.')
     setTab('login')
     btn.disabled = false
   }
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Enter') action() })
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return
+  // Enter solo aplica al panel visible
+  if (document.getElementById('soportePanel').style.display === 'flex') return
+  if (document.getElementById('resetPanel').style.display === 'flex') { actualizarPassword(); return }
+  action()
+})
 
 // Registrar el service worker (permite instalar la app y usarla sin conexión)
 if ('serviceWorker' in navigator) {
