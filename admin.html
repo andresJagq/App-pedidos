@@ -77,6 +77,21 @@
   .btn-todas { background:none; border:1px solid var(--border); color:var(--muted); border-radius:9px; padding:8px; font-size:0.76rem; cursor:pointer; font-family:'DM Sans',sans-serif; width:100%; margin-bottom:16px; }
   .vacio { text-align:center; padding:22px; color:var(--muted); font-size:0.82rem; }
 
+  /* ── Modal de contraseña temporal ── */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; padding:24px; z-index:200; }
+  .modal-bg.open { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:24px 20px; width:100%; max-width:360px; text-align:center; }
+  .modal h3 { font-family:'Bebas Neue',cursive; font-size:1.5rem; color:var(--yellow); letter-spacing:1px; margin-bottom:4px; }
+  .modal .quien-modal { font-size:0.8rem; color:var(--muted); margin-bottom:16px; word-break:break-word; }
+  .pass-box { background:var(--card2); border:1px dashed var(--yellow); border-radius:12px; padding:16px; font-family:'Bebas Neue',cursive; font-size:1.9rem; letter-spacing:2px; color:var(--yellow); user-select:all; margin-bottom:12px; word-break:break-all; }
+  .modal .nota { font-size:0.76rem; color:var(--muted); line-height:1.6; margin:14px 0 18px; text-align:left; }
+  .modal .btn-copiar { width:100%; background:var(--green); color:#111; border:none; border-radius:11px; font-family:'Bebas Neue',cursive; font-size:1.15rem; letter-spacing:1px; padding:12px; cursor:pointer; }
+  .modal .btn-cerrar { width:100%; background:none; border:1px solid var(--border); color:var(--muted); border-radius:11px; padding:11px; font-size:0.85rem; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:8px; }
+  .btn-reset { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:6px 12px; font-size:0.75rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  .btn-reset:active { border-color:var(--yellow); color:var(--yellow); }
+  .btn-reset:disabled { opacity:0.5; }
+  .card-btns { display:flex; gap:6px; flex-shrink:0; }
+
   .loading { text-align:center; padding:30px; color:var(--muted); }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; }
 </style>
@@ -123,6 +138,24 @@
   <div class="users-list" id="usersList"><div class="loading">Cargando...</div></div>
 
 </div>
+<!-- Modal con la contraseña temporal recién generada -->
+<div class="modal-bg" id="passModal">
+  <div class="modal">
+    <h3>🔑 CONTRASEÑA TEMPORAL</h3>
+    <div class="quien-modal" id="passModalQuien">—</div>
+    <div class="pass-box" id="passModalValor">—</div>
+    <button class="btn-copiar" onclick="copiarPassword()">📋 Copiar</button>
+    <div class="nota">
+      Dísela solo a esta persona (por WhatsApp o en persona). Su contraseña anterior
+      ya no funciona. Pídele que la cambie desde <b>"¿Olvidaste tu contraseña?"</b>
+      cuando pueda.<br><br>
+      ⚠️ Esta clave no se vuelve a mostrar. Si cierras sin copiarla, tendrás que
+      generar otra.
+    </div>
+    <button class="btn-cerrar" onclick="cerrarPassModal()">Cerrar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -131,6 +164,7 @@ let allUsers = []
 let mesOffsetAdmin = 0
 let notificaciones = []
 let filtroNotif = 'no_leidas'
+let passwordGenerada = ''
 
 // ── TEMA (claro / oscuro) ──
 function toggleTema() {
@@ -204,7 +238,8 @@ const NOTIF_META = {
   soporte:            { ico:'🆘', titulo:'Mensaje de soporte' },
   reset_solicitado:   { ico:'🔑', titulo:'Pidió restablecer su contraseña' },
   password_cambiada:  { ico:'✅', titulo:'Cambió su contraseña' },
-  registro:           { ico:'👤', titulo:'Nuevo registro' }
+  registro:           { ico:'👤', titulo:'Nuevo registro' },
+  reset_admin:        { ico:'🔑', titulo:'Le generaste una contraseña temporal' }
 }
 
 // Escapa texto que viene del usuario antes de meterlo en innerHTML
@@ -338,7 +373,10 @@ async function cargarUsuarios() {
           <div class="name">${esc(p.nombre || '—')}</div>
           <div class="email">${p.id.substring(0,8)}... ${p.es_admin ? '⭐ admin' : ''}</div>
         </div>
-        <button class="btn-user-export" onclick="exportarUsuario('${p.id}')">⬇️ Excel</button>
+        <div class="card-btns">
+          ${p.id === USER.id ? '' : `<button class="btn-reset" onclick="resetPassword('${p.id}', this)">🔑 Clave</button>`}
+          <button class="btn-user-export" onclick="exportarUsuario('${p.id}')">⬇️ Excel</button>
+        </div>
       </div>
       <div class="user-stats">
         <div class="stat"><div class="sl">Días</div><div class="sv">${totalDias}</div></div>
@@ -347,6 +385,49 @@ async function cargarUsuarios() {
       </div>`
     list.appendChild(card)
   }
+}
+
+// ── RESTABLECER CONTRASEÑA ──────────────────────────────
+// El cambio lo hace la Edge Function `reset-password` en el servidor: la clave
+// service_role nunca toca el navegador. Aquí solo pedimos y mostramos.
+async function resetPassword(userId, btn) {
+  const u = allUsers.find(x => x.profile.id === userId)
+  const nombre = u?.profile?.nombre || 'este usuario'
+  if (!confirm(`¿Generar una contraseña temporal para ${nombre}?\n\nSu contraseña actual dejará de funcionar de inmediato.`)) return
+
+  if (btn) { btn.disabled = true; btn.textContent = '...' }
+
+  const { data, error } = await sb.functions.invoke('reset-password', { body: { user_id: userId } })
+
+  if (btn) { btn.disabled = false; btn.textContent = '🔑 Clave' }
+
+  if (error) {
+    // La Edge Function manda el motivo en el cuerpo de la respuesta
+    let motivo = 'No se pudo generar la contraseña'
+    try { motivo = (await error.context.json()).error || motivo } catch (e) {}
+    showToast('⚠️ ' + motivo)
+    return
+  }
+
+  passwordGenerada = data.password
+  document.getElementById('passModalQuien').textContent = [nombre, data.email].filter(Boolean).join(' · ')
+  document.getElementById('passModalValor').textContent = data.password
+  document.getElementById('passModal').classList.add('open')
+  cargarNotificaciones()
+}
+
+async function copiarPassword() {
+  try {
+    await navigator.clipboard.writeText(passwordGenerada)
+    showToast('✅ Contraseña copiada')
+  } catch (e) {
+    showToast('⚠️ Cópiala a mano: ' + passwordGenerada)
+  }
+}
+
+function cerrarPassModal() {
+  document.getElementById('passModal').classList.remove('open')
+  passwordGenerada = ''
 }
 
 async function exportarUsuario(userId) {
