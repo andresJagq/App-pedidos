@@ -10,8 +10,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pedidos">
 <script>
-  // Detecta si llegamos desde un enlace de recuperación de contraseña (antes de que Supabase procese la URL)
-  window.__recovery = location.hash.indexOf('type=recovery') !== -1
+  // Lee lo que trae el enlace del correo ANTES de que Supabase limpie la URL.
+  // Según la versión, los datos vienen en el hash (#) o en la query (?), y si
+  // el enlace falló vienen error/error_code en vez del token.
+  (function () {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''))
+    const q = new URLSearchParams(location.search)
+    const g = k => h.get(k) || q.get(k)
+    window.__authLink = {
+      recovery:  g('type') === 'recovery',
+      code:      q.get('code'),
+      error:     g('error'),
+      errorCode: g('error_code'),
+      errorDesc: g('error_description')
+    }
+  })()
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
@@ -159,9 +172,36 @@ sb.auth.onAuthStateChange((event) => {
 })
 function mostrarReset() {
   document.getElementById('loginPanel').style.display = 'none'
+  document.getElementById('soportePanel').style.display = 'none'
   document.getElementById('resetPanel').style.display = 'flex'
   document.getElementById('welcomeSub').textContent = '🔑 Elige tu nueva contraseña'
   hide()
+}
+
+// Motivos en castellano para lo que devuelve Supabase cuando el enlace falla
+const MOTIVOS_ENLACE = {
+  otp_expired:     'El enlace ya expiró, o alguien lo abrió antes que tú: sirven una sola vez y por tiempo limitado.',
+  access_denied:   'El enlace ya no es válido. Suele ser porque expiró o porque ya se usó.',
+  invalid_request: 'El enlace llegó incompleto. Puede que tu correo lo haya cortado en dos líneas.',
+  server_error:    'Supabase no pudo procesar el enlace. Vuelve a intentarlo en un momento.'
+}
+
+// El enlace del correo falló: hay que decirlo y ofrecer pedir otro.
+function mostrarErrorEnlace() {
+  const l = window.__authLink
+  const motivo = MOTIVOS_ENLACE[l.errorCode] || MOTIVOS_ENLACE[l.error] || l.errorDesc ||
+    'Ese enlace no es válido.'
+  document.getElementById('loginPanel').style.display = 'flex'
+  document.getElementById('resetPanel').style.display = 'none'
+  document.getElementById('welcomeSub').textContent = '🔑 Pide un enlace nuevo'
+  showError('⚠️ ' + motivo + ' Escribe tu email abajo y toca "¿Olvidaste tu contraseña?" para pedir otro.')
+  limpiarURL()
+}
+
+// Quita el token/error de la barra de direcciones para que no quede a la vista
+// ni se reenvíe al recargar.
+function limpiarURL() {
+  try { history.replaceState(null, '', location.pathname) } catch (e) {}
 }
 // Enviar el correo con el enlace de recuperación
 async function recuperarPassword() {
@@ -180,7 +220,10 @@ async function actualizarPassword() {
   if (!p1 || p1.length < 6) return showError('La contraseña debe tener al menos 6 caracteres')
   if (p1 !== p2) return showError('Las contraseñas no coinciden')
   const { error } = await sb.auth.updateUser({ password: p1 })
-  if (error) { showError('No se pudo actualizar. El enlace pudo expirar; pide otro correo.'); return }
+  if (error) {
+    showError('No se pudo guardar: el enlace expiró o ya se había usado. Vuelve al login y pide uno nuevo.')
+    return
+  }
   // Aviso al panel del admin (con la sesión aún abierta, para saber quién fue)
   const { data: { user } } = await sb.auth.getUser()
   await notificar('password_cambiada', {
@@ -209,7 +252,7 @@ function abrirSoporte() {
 function cerrarSoporte() {
   document.getElementById('soportePanel').style.display = 'none'
   document.getElementById('supportLine').style.display = 'block'
-  if (recoveryMode || window.__recovery) { mostrarReset(); return }
+  if (recoveryMode || window.__authLink.recovery) { mostrarReset(); return }
   document.getElementById('loginPanel').style.display = 'flex'
   document.getElementById('welcomeSub').textContent = '👋 ¡Bienvenido! Ingresa para registrar tus ganancias'
   hide()
@@ -230,8 +273,29 @@ async function enviarSoporte() {
 }
 
 async function checkSession() {
+  const l = window.__authLink
+
+  // El enlace vino con error: mostrarlo en vez de dejar la pantalla como si nada
+  if (l.error) { mostrarErrorEnlace(); return }
+
+  // Flujo PKCE: el enlace trae ?code= y hay que canjearlo por la sesión.
+  // Esta app no usa OAuth, así que un ?code= solo puede venir de recuperación.
+  if (l.code) {
+    const { error } = await sb.auth.exchangeCodeForSession(l.code)
+    limpiarURL()
+    if (error) {
+      window.__authLink.errorCode = 'access_denied'
+      mostrarErrorEnlace()
+      return
+    }
+    recoveryMode = true
+    mostrarReset()
+    return
+  }
+
   // Si venimos de un enlace de recuperación, NO entrar directo: dejar elegir nueva contraseña
-  if (window.__recovery) { mostrarReset(); return }
+  if (l.recovery) { mostrarReset(); return }
+
   const { data: { session } } = await sb.auth.getSession()
   if (session && !recoveryMode) window.location.href = 'app.html'
 }

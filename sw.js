@@ -1,7 +1,7 @@
 // Service Worker de CalculaPedidos
 // Estrategia: "network-first" para archivos propios (siempre la versión más nueva si hay
 // internet) con respaldo desde caché cuando no hay conexión. No toca Supabase ni los CDNs.
-const CACHE = 'calculapedidos-v2'
+const CACHE = 'calculapedidos-v3'
 const ASSETS = [
   './',
   './index.html',
