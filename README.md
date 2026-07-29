@@ -38,6 +38,33 @@ necesidad de configurar ningún correo:
 
 El buzón se refresca solo cada minuto mientras el panel está abierto.
 
+## Restablecer la contraseña de alguien
+
+En cada tarjeta de usuario del panel hay un botón **🔑 Clave**. Genera una
+contraseña temporal tipo `Pedidos-4821`, la muestra una sola vez para copiarla y
+dictársela a esa persona. La contraseña anterior deja de funcionar al instante.
+
+Esto **no** se puede hacer desde el navegador: cambiarle la clave a otro usuario
+exige la clave `service_role`, que nunca debe estar en el frontend. Por eso vive
+en una Edge Function (`supabase/functions/reset-password/`) que corre en el
+servidor de Supabase y comprueba que quien llama sea admin antes de actuar.
+
+**Desplegarla desde el dashboard (una sola vez):**
+
+1. Supabase → **Edge Functions** → **Deploy a new function** → **Via Editor**
+2. Nombre: `reset-password` (exacto, en minúsculas)
+3. Borrar el código de ejemplo y pegar todo `supabase/functions/reset-password/index.ts`
+4. **Deploy**
+
+No hay que configurar ninguna variable: Supabase inyecta `SUPABASE_URL`,
+`SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` automáticamente.
+
+**Con la CLI**, si la tienes instalada:
+
+```bash
+supabase functions deploy reset-password
+```
+
 ## Deploy en Vercel (paso a paso)
 
 ### 1. Crear cuenta en GitHub

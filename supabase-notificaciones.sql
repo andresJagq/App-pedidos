@@ -7,7 +7,7 @@
 -- 1. Tabla ──────────────────────────────────────────────────────────
 create table if not exists public.notificaciones (
   id         bigint generated always as identity primary key,
-  tipo       text not null check (tipo in ('soporte','reset_solicitado','password_cambiada','registro')),
+  tipo       text not null,
   nombre     text,
   email      text,
   mensaje    text,
@@ -15,6 +15,12 @@ create table if not exists public.notificaciones (
   leida      boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Tipos permitidos. Se redefine cada vez para que puedas volver a correr
+-- este archivo cuando se agreguen tipos nuevos.
+alter table public.notificaciones drop constraint if exists notificaciones_tipo_check;
+alter table public.notificaciones add constraint notificaciones_tipo_check
+  check (tipo in ('soporte','reset_solicitado','password_cambiada','registro','reset_admin'));
 
 create index if not exists notificaciones_created_idx on public.notificaciones (created_at desc);
 create index if not exists notificaciones_no_leidas_idx on public.notificaciones (leida) where leida = false;
@@ -42,6 +48,8 @@ drop policy if exists "admin borra notificaciones" on public.notificaciones;
 -- Cualquiera puede CREAR una notificación: el aviso de "olvidé mi contraseña"
 -- y el formulario de soporte del login ocurren sin sesión iniciada.
 -- Los límites de largo evitan que alguien use la tabla como basurero.
+-- Ojo: 'reset_admin' queda FUERA de esta lista a propósito. Solo la Edge
+-- Function (con service_role) puede crearlo, así nadie finge un reseteo.
 create policy "crear notificaciones" on public.notificaciones
   for insert to anon, authenticated
   with check (
