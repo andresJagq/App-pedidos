@@ -55,6 +55,28 @@
   .btn-user-export { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:6px 12px; font-size:0.75rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
   .btn-user-export:active { border-color:var(--green); color:var(--green); }
 
+  /* ── Notificaciones ── */
+  .notif-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .badge { background:var(--red); color:#fff; font-size:0.68rem; font-weight:700; border-radius:20px; padding:2px 8px; margin-left:6px; }
+  .badge.cero { background:var(--border); color:var(--muted); }
+  .notif-filtros { display:flex; gap:6px; }
+  .chip { background:var(--card2); border:1px solid var(--border); color:var(--muted); border-radius:20px; padding:5px 12px; font-size:0.72rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  .chip.active { background:var(--brand); border-color:var(--brand); color:var(--on-brand); }
+  .notif-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .notif { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:flex; gap:11px; align-items:flex-start; }
+  .notif.no-leida { border-left:3px solid var(--yellow); background:var(--card2); }
+  .notif .ico { font-size:1.15rem; line-height:1.3; }
+  .notif .cuerpo { flex:1; min-width:0; }
+  .notif .titulo { font-weight:700; font-size:0.87rem; margin-bottom:2px; }
+  .notif .quien { font-size:0.73rem; color:var(--muted); word-break:break-word; }
+  .notif .texto { font-size:0.82rem; margin-top:6px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .notif .cuando { font-size:0.68rem; color:var(--muted); margin-top:6px; }
+  .notif .acciones { display:flex; flex-direction:column; gap:5px; }
+  .notif .acciones button { background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px; padding:4px 7px; font-size:0.7rem; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+  .notif .acciones button:active { border-color:var(--green); color:var(--green); }
+  .btn-todas { background:none; border:1px solid var(--border); color:var(--muted); border-radius:9px; padding:8px; font-size:0.76rem; cursor:pointer; font-family:'DM Sans',sans-serif; width:100%; margin-bottom:16px; }
+  .vacio { text-align:center; padding:22px; color:var(--muted); font-size:0.82rem; }
+
   .loading { text-align:center; padding:30px; color:var(--muted); }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#111; font-weight:700; font-size:0.85rem; padding:10px 20px; border-radius:20px; display:none; z-index:100; }
 </style>
@@ -71,6 +93,16 @@
 </header>
 
 <div class="content">
+
+  <div class="notif-head" style="margin-top:8px;">
+    <div class="section-label" style="margin:0;">🔔 Notificaciones<span class="badge cero" id="notifBadge">0</span></div>
+    <div class="notif-filtros">
+      <button class="chip active" id="chipNoLeidas" onclick="setFiltroNotif('no_leidas')">Sin leer</button>
+      <button class="chip" id="chipTodas" onclick="setFiltroNotif('todas')">Todas</button>
+    </div>
+  </div>
+  <div class="notif-list" id="notifList"><div class="loading">Cargando...</div></div>
+  <button class="btn-todas" id="btnMarcarTodas" onclick="marcarTodasLeidas()">✓ Marcar todas como leídas</button>
 
   <div class="section-label" style="margin-top:8px;">📊 Rango de fechas</div>
   <div class="export-card">
@@ -97,6 +129,8 @@
 let USER = null
 let allUsers = []
 let mesOffsetAdmin = 0
+let notificaciones = []
+let filtroNotif = 'no_leidas'
 
 // ── TEMA (claro / oscuro) ──
 function toggleTema() {
@@ -150,14 +184,130 @@ async function init() {
   const { data: profile } = await sb.from('profiles').select('*').eq('id', USER.id).single()
   if (!profile?.es_admin) { window.location.href = 'app.html'; return }
 
-  const d = new Date()
   actualizarMesAdminLabel()
+  await cargarNotificaciones()
   await cargarUsuarios()
+
+  // Refresca el buzón cada 60 s mientras el panel esté a la vista
+  setInterval(() => { if (!document.hidden) cargarNotificaciones() }, 60000)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarNotificaciones() })
 }
 
 async function logout() {
   await sb.auth.signOut()
   window.location.href = 'index.html'
+}
+
+// ── NOTIFICACIONES ──────────────────────────────────────
+// Reemplazan a los correos: soporte, contraseñas y registros llegan aquí.
+const NOTIF_META = {
+  soporte:            { ico:'🆘', titulo:'Mensaje de soporte' },
+  reset_solicitado:   { ico:'🔑', titulo:'Pidió restablecer su contraseña' },
+  password_cambiada:  { ico:'✅', titulo:'Cambió su contraseña' },
+  registro:           { ico:'👤', titulo:'Nuevo registro' }
+}
+
+// Escapa texto que viene del usuario antes de meterlo en innerHTML
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ))
+}
+
+function tiempoRelativo(iso) {
+  const d = new Date(iso)
+  const min = Math.floor((Date.now() - d.getTime()) / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const dias = Math.floor(h / 24)
+  if (dias === 1) return 'ayer'
+  if (dias < 7) return `hace ${dias} días`
+  return d.toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })
+}
+
+async function cargarNotificaciones() {
+  const { data, error } = await sb.from('notificaciones')
+    .select('*').order('created_at', { ascending:false }).limit(100)
+
+  const list = document.getElementById('notifList')
+  if (error) {
+    list.innerHTML = '<div class="vacio">No se pudieron cargar las notificaciones.<br>¿Ya ejecutaste <b>supabase-notificaciones.sql</b> en Supabase?</div>'
+    document.getElementById('btnMarcarTodas').style.display = 'none'
+    return
+  }
+  notificaciones = data || []
+  renderNotificaciones()
+}
+
+function renderNotificaciones() {
+  const list = document.getElementById('notifList')
+  const sinLeer = notificaciones.filter(n => !n.leida).length
+
+  const badge = document.getElementById('notifBadge')
+  badge.textContent = sinLeer
+  badge.classList.toggle('cero', sinLeer === 0)
+  document.getElementById('btnMarcarTodas').style.display = sinLeer > 0 ? 'block' : 'none'
+
+  const visibles = filtroNotif === 'no_leidas' ? notificaciones.filter(n => !n.leida) : notificaciones
+
+  if (visibles.length === 0) {
+    list.innerHTML = `<div class="vacio">${filtroNotif === 'no_leidas' ? '🎉 No tienes notificaciones sin leer' : 'Todavía no hay notificaciones'}</div>`
+    return
+  }
+
+  list.innerHTML = ''
+  for (const n of visibles) {
+    const meta = NOTIF_META[n.tipo] || { ico:'🔔', titulo:n.tipo }
+    const quien = [n.nombre, n.email].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'
+    const el = document.createElement('div')
+    el.className = 'notif' + (n.leida ? '' : ' no-leida')
+    el.innerHTML = `
+      <div class="ico">${meta.ico}</div>
+      <div class="cuerpo">
+        <div class="titulo">${esc(meta.titulo)}</div>
+        <div class="quien">${quien}</div>
+        ${n.mensaje ? `<div class="texto">${esc(n.mensaje)}</div>` : ''}
+        <div class="cuando">${esc(tiempoRelativo(n.created_at))}</div>
+      </div>
+      <div class="acciones">
+        ${n.leida ? '' : `<button onclick="marcarLeida(${n.id})">✓ Leída</button>`}
+        <button onclick="borrarNotif(${n.id})">🗑️</button>
+      </div>`
+    list.appendChild(el)
+  }
+}
+
+function setFiltroNotif(f) {
+  filtroNotif = f
+  document.getElementById('chipNoLeidas').classList.toggle('active', f === 'no_leidas')
+  document.getElementById('chipTodas').classList.toggle('active', f === 'todas')
+  renderNotificaciones()
+}
+
+async function marcarLeida(id) {
+  const { error } = await sb.from('notificaciones').update({ leida:true }).eq('id', id)
+  if (error) { showToast('⚠️ No se pudo marcar'); return }
+  const n = notificaciones.find(x => x.id === id)
+  if (n) n.leida = true
+  renderNotificaciones()
+}
+
+async function marcarTodasLeidas() {
+  const { error } = await sb.from('notificaciones').update({ leida:true }).eq('leida', false)
+  if (error) { showToast('⚠️ No se pudo marcar'); return }
+  notificaciones.forEach(n => n.leida = true)
+  renderNotificaciones()
+  showToast('✅ Todas marcadas como leídas')
+}
+
+async function borrarNotif(id) {
+  if (!confirm('¿Borrar esta notificación?')) return
+  const { error } = await sb.from('notificaciones').delete().eq('id', id)
+  if (error) { showToast('⚠️ No se pudo borrar'); return }
+  notificaciones = notificaciones.filter(x => x.id !== id)
+  renderNotificaciones()
 }
 
 async function cargarUsuarios() {
@@ -185,7 +335,7 @@ async function cargarUsuarios() {
     card.innerHTML = `
       <div class="top">
         <div>
-          <div class="name">${p.nombre || '—'}</div>
+          <div class="name">${esc(p.nombre || '—')}</div>
           <div class="email">${p.id.substring(0,8)}... ${p.es_admin ? '⭐ admin' : ''}</div>
         </div>
         <button class="btn-user-export" onclick="exportarUsuario('${p.id}')">⬇️ Excel</button>
